@@ -1,8 +1,8 @@
 """Module for the textual-window demo app."""
 
-#~ TYPE CHECKING STATUS (Pyright):
-#~ Standard: Passing
-#~ Strict: Passing
+# ~ Type Checking (Pyright) - Strict Mode
+# ~ Linting - Ruff
+# ~ Formatting - Black - max 110 characters / line
 
 # Python imports:
 from typing import cast
@@ -31,9 +31,12 @@ from textual_window import Window, WindowBar
 
 lorem_ipsum = """Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."""
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut 
+aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in 
+voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint 
+occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit 
+anim id est laborum."""
+
 
 class MyWindow(Window):
 
@@ -74,57 +77,64 @@ class WindowDemo(App[None]):
     ]
 
     app_initialized: bool = False
-    
+
     def compose(self) -> ComposeResult:
 
-        yield WindowBar()      # If you have either a Header or Footer, WindowBar Must go  
-        # yield Header()         # before them in the compose method. Otherwise it will cover them up.       
+        yield WindowBar(start_open=True)  # If you have either a Header or Footer, WindowBar Must go
+        # yield Header()         # before them in the compose method. Otherwise it will cover them up.
 
         with Container(id="main_container"):
 
-            #* There are 3 different ways to add children to a widget in Textual,
+            # * There are 3 different ways to add children to a widget in Textual,
             # and all of them work with the Window widget:
 
-            #1) Context manager:                         
+            # 1) Context manager:
             with Window(
-                id="window0", name = "Window 0",
-                starting_horizontal = "center", starting_vertical = "uppermiddle",
-                show_lock_button = True     # This is False by default.
-            ):   
-                yield TextArea(id = "input1")
-                with Horizontal(classes = "button_container"):
-                    yield Static(classes = "spacer")
+                id="window0",
+                name="Window 0",
+                starting_horizontal="center",
+                starting_vertical="uppermiddle",
+                show_lock_button=True,  # This is False by default.
+            ):
+                yield TextArea(id="input1")
+                with Horizontal(classes="button_container"):
+                    yield Static(classes="spacer")
                     yield Button("Submit", id="button1")
 
-            # 2) Pass a list of widgets to the constructor:  
+            # 2) Pass a list of widgets to the constructor:
             window_widgets: list[Widget] = [Static(lorem_ipsum), Checkbox("I have read the above")]
             yield Window(
-                *window_widgets, id = "window1", name = "Window 1",
-                starting_horizontal = "left", starting_vertical = "middle",
+                *window_widgets,
+                id="window1",
+                name="Window 1",
+                starting_horizontal="left",
+                starting_vertical="middle",
+                show_maximize_button=True,
             )
 
-            # 3) Custom widget with compose method:   
+            # 3) Custom widget with compose method:
             yield MyWindow(
-                id="window2", name = "Window 2",
-                allow_resize=False, animated=False,     # animated=False will disable the Fade effect.
-                starting_horizontal = "centerright",
-                starting_vertical = "lowermiddle",
-                start_open = False
-            )                    
+                id="window2",
+                name="Window 2",
+                allow_resize=False,
+                animated=False,  # animated=False will disable the Fade effect.
+                starting_horizontal="centerright",
+                starting_vertical="lowermiddle",
+                start_open=False,
+            )
 
-            with Container(id = "center_content"):
-                yield RichLog(id = "rich_log")
+            with Container(id="center_content"):
+                yield RichLog(id="rich_log")
 
-        # yield WindowBar()      # If you have either a Header or Footer, WindowBar Must go  
-        yield Footer()         # before them in the compose method. Otherwise it will cover them up.
+        # yield WindowBar()      # If you have either a Header or Footer, WindowBar Must go
+        yield Footer()  # before them in the compose method. Otherwise it will cover them up.
 
     def on_mount(self) -> None:
         main_container = self.query_one("#main_container")
-        main_container.styles.opacity = 0.0     # Chad loading screen   
-
+        main_container.styles.opacity = 0.0  # Chad loading screen
 
     ###############################
-    #~ Window Events and Actions ~#
+    # ~ Window Events and Actions ~#
     ###############################
 
     def action_toggle_windowbar(self) -> None:
@@ -161,15 +171,15 @@ class WindowDemo(App[None]):
 
         if not self.app_initialized:
             main_container = self.query_one("#main_container")
-            main_container.styles.animate("opacity", value=1.0, duration=0.5)   # Chad loading screen        
+            main_container.styles.animate("opacity", value=1.0, duration=0.5)  # Chad loading screen
             self.app_initialized = True
 
     ##################
-    #~ Other Events ~#
+    # ~ Other Events ~#
     ##################
 
-    @on(Button.Pressed, "#button1")           
-    def button1_pressed(self) -> None:   
+    @on(Button.Pressed, "#button1")
+    def button1_pressed(self) -> None:
 
         textarea = cast(TextArea, self.query_one("#input1"))
         richlog = cast(RichLog, self.query_one("#rich_log"))
@@ -180,11 +190,12 @@ class WindowDemo(App[None]):
     def checkbox_changed(self, event: Checkbox.Changed) -> None:
 
         richlog = cast(RichLog, self.app.query_one("#rich_log"))
-        richlog.write(f"Checkbox changed to {event.value}")        
+        richlog.write(f"Checkbox changed to {event.value}")
 
 
 def run_demo():
     WindowDemo().run()
+
 
 if __name__ == "__main__":
     run_demo()

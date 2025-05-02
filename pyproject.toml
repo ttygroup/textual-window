@@ -45,3 +45,5 @@ build-backend = "hatchling.build"
 [project.scripts]
 textual-window = "textual_window.demo:run_demo"
 
+[tool.black]
+line-length = 110

@@ -14,10 +14,12 @@
 - [X] Add an intialized message to complement the Reset message.  
 - [X] Add setting to dock WindowBar to the top instead of the bottom.  
 - [X] Fix initialization if all windows start with display=False
+- [X] Add another generic WindowBar menu for all windows.
+- [X] Implement a maximize ability.
+- [X] Implement start_open option in WindowBar.
+- [ ] Add option to change WindowBar dock.
 - [ ] Add switch between locking to parent container and locking to screen.  
 - [ ] Implement way to deal with relative sizes.  
 - [ ] Add the disable lock state feature.  
-- [ ] Turn allow_resize into a reactive variable.
-- [ ] Add another generic WindowBar menu for all windows.
 - [ ] Add option to make the WindowBar floating.
-- [ ] Implement start_open option in WindowBar.
+- [ ] Turn allow_resize into a reactive variable.
