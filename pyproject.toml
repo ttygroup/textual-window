@@ -1,9 +1,9 @@
 [project]
 name = "textual-window"
-version = "0.1.0"
+version = "0.1.2"
 description = "A Textual widget for a floating, draggable window and included window bar/manager system."
 readme = "README.md"
-requires-python = ">=3.8.1"
+requires-python = ">=3.10"
 authors = [
     { name = "edward-jazzhands", email = "ed.jazzhands@gmail.com" }
 ]

@@ -215,7 +215,7 @@ class WindowBarMenu(ModalScreen[None]):
                 yield ButtonStatic("Unlock all", id="unlock_all")
                 yield ButtonStatic("Reset all", id="reset_all")
                 if self.window_bar.show_toggle_dock:
-                    yield ButtonStatic(f"Toggle Dock {Emoji("arrow_up_down")}", id="toggle_dock")
+                    yield ButtonStatic(f"Toggle Dock {Emoji('arrow_up_down')}", id="toggle_dock")
             else:
                 raise RuntimeError("WindowBarMenu must have either a Window or WindowBar")
 
