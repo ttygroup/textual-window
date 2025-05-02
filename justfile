@@ -14,11 +14,6 @@ run-dev:
 console:
 	uv run textual console -x EVENT -x SYSTEM
 
-# Run the tmux script (see tmux.sh for details)
-tmux:
-	chmod +x tmux.sh
-	./tmux.sh
-
 # Build the package, run clean first
 build: clean
 	@echo "Building the package..."
