@@ -1,0 +1,23 @@
+# Features to Add
+
+- [X] Add a close button to the top bar.  
+- [X] Add a lock to screen option.  
+- [X] Add a resize button to the bottom right corner.  
+- [X] Add a title argument to the window.  
+- [X] Add a way to set the starting position of the window.  
+- [X] Add method to reset size and position of the window.  
+- [X] Add open / close animations.  
+- [X] Make it possible to set min/max size through both CSS and constructor.  
+- [X] Button to Enable / Disable window locking.  
+- [X] Add a window manager bar / task bar system.  
+- [X] Find way to fix issues with all windows starting closed.  
+- [X] Add an intialized message to complement the Reset message.  
+- [X] Add setting to dock WindowBar to the top instead of the bottom.  
+- [X] Fix initialization if all windows start with display=False
+- [ ] Add switch between locking to parent container and locking to screen.  
+- [ ] Implement way to deal with relative sizes.  
+- [ ] Add the disable lock state feature.  
+- [ ] Turn allow_resize into a reactive variable.
+- [ ] Add another generic WindowBar menu for all windows.
+- [ ] Add option to make the WindowBar floating.
+- [ ] Implement start_open option in WindowBar.

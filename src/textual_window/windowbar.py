@@ -1,0 +1,404 @@
+"""Module for the WindowBar widget.  
+
+You don't need to import from this module. You can simply do:
+`from textual_window import WindowBar`
+"""
+
+#~ TYPE CHECKING STATUS (Pyright):
+#~ Standard: Passing
+#~ Strict: Passing
+
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Literal
+if TYPE_CHECKING:
+    from textual_window.window import Window
+    from textual.visual import VisualType    
+from textual.app import ComposeResult
+from textual import on, work
+from textual.css.query import NoMatches
+from textual.geometry import Offset
+from textual.screen import ModalScreen
+from textual.containers import Horizontal, Container
+from textual import events
+from textual.message import Message
+from textual.widgets import Static, Header, Footer
+from textual.reactive import reactive
+# from textual.binding import Binding
+
+from textual_window.manager import window_manager     # The manager is a singleton instance
+
+DOCK_DIRECTION = Literal["top", "bottom"]
+
+
+class NoSelectStatic(Static):
+
+    @property
+    def allow_select(self) -> bool:
+        return False
+    
+
+class ButtonStatic(NoSelectStatic):
+
+    class Pressed(Message):
+        def __init__(self, button: ButtonStatic) -> None:
+            super().__init__()
+            self.button = button
+
+        @property
+        def control(self) -> ButtonStatic:
+            return self.button
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+
+        self.capture_mouse()
+        self.add_class("pressed")
+        
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+
+        if self.app.mouse_captured == self:
+
+            self.remove_class("pressed")
+            self.release_mouse()
+            self.post_message(self.Pressed(self))
+
+    def on_leave(self, event: events.Leave) -> None:
+
+        if self.app.mouse_captured == self:
+
+            self.release_mouse()
+            self.remove_class("pressed")
+
+
+class WindowBarButton(NoSelectStatic):
+
+    def __init__(
+            self, 
+            content: VisualType, 
+            window: Window,
+            window_bar: WindowBar,
+            **kwargs: Any
+        ):
+        super().__init__(content=content, **kwargs)
+        self.window = window 
+        self.window_bar = window_bar
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+
+        self.capture_mouse()
+        if event.button == 1:                          # left click
+            self.add_class("pressed")
+        elif event.button == 2 or event.button == 3:   # middle or right click
+            self.add_class("right_pressed")
+        
+    async def on_mouse_up(self, event: events.MouseUp) -> None:
+
+        if self.app.mouse_captured == self:
+
+            if event.button == 1:                          # left click
+                self.window.toggle_window()
+            elif event.button == 2 or event.button == 3:   # middle or right click
+                self.show_popup()
+
+            self.remove_class("pressed")
+            self.remove_class("right_pressed")
+            self.release_mouse()
+
+    def on_leave(self, event: events.Leave) -> None:
+
+        if self.app.mouse_captured == self:
+
+            self.release_mouse()
+            self.remove_class("pressed")
+            self.remove_class("right_pressed")
+
+    @work
+    async def show_popup(self) -> None:
+
+        absolute_offset = self.screen.get_offset(self)
+        await self.app.push_screen_wait(
+            WindowBarMenu(
+                menu_offset=absolute_offset,
+                dock=self.window_bar.dock, 
+                window=self.window, 
+            )
+        )     
+
+
+class WindowBarBaseButton(NoSelectStatic):
+
+    def __init__(
+            self, 
+            window_bar: WindowBar,
+            **kwargs: Any
+        ):
+        super().__init__(**kwargs)
+        self.window_bar = window_bar
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+
+        self.capture_mouse()
+        if event.button == 2 or event.button == 3:   # middle or right click
+            self.add_class("right_pressed")
+        
+    async def on_mouse_up(self, event: events.MouseUp) -> None:
+
+        if self.app.mouse_captured == self:
+            if event.button == 2 or event.button == 3:   # middle or right click
+                self.show_popup()
+
+            self.remove_class("pressed")
+            self.release_mouse()
+
+    def on_leave(self, event: events.Leave) -> None:
+
+        if self.app.mouse_captured == self:
+
+            self.release_mouse()
+            self.remove_class("pressed")
+
+    @work
+    async def show_popup(self) -> None:
+
+        absolute_offset = self.screen.get_offset(self)
+        await self.app.push_screen_wait(
+            WindowBarMenu(
+                menu_offset=absolute_offset,
+                dock=self.window_bar.dock, 
+            )
+        )    
+
+
+class WindowBarMenu(ModalScreen[None]):
+
+    CSS = """
+    WindowBarMenu {
+        background: $background 0%;
+        align: left top;    /* This will set the starting coordinates to (0, 0) */
+    }                       /* Which we need for the absolute offset to work */
+    #menu_container {
+        background: $surface;
+        width: 14; height: 3;
+        border-left: wide $panel;
+        border-right: wide $panel;        
+        &.bottom { border-top: wide $panel; }
+        &.top { border-bottom: wide $panel; }
+        & > ButtonStatic {
+            &:hover { background: $panel-lighten-2; }
+            &.pressed { background: $primary; }        
+        }
+    }
+    """
+
+    def __init__(
+            self, 
+            menu_offset: Offset, 
+            dock: str,
+            window: Window | None = None,            
+        ) -> None:
+        super().__init__()
+        self.window = window
+        self.menu_offset = menu_offset
+        self.dock = dock
+
+    def compose(self) -> ComposeResult:
+
+        with Container(id="menu_container"):
+            # if self.window:
+            yield ButtonStatic("Lock/Unlock", id="lock_unlock")
+            yield ButtonStatic("Reset", id="reset")
+
+    def on_mount(self) -> None:
+
+        menu = self.query_one("#menu_container")
+        if self.dock == "top":
+            y_offset = self.menu_offset.y + 1    # When at the top, just shift down by 1 row.
+            menu.add_class("top")
+            menu.remove_class("bottom")             
+        elif self.dock == "bottom":
+            y_offset = self.menu_offset.y - 3    # when at the bottom, shift up by the height of the menu.
+            menu.add_class("bottom")
+            menu.remove_class("top")
+        else:
+            raise ValueError("Dock must be either 'top' or 'bottom'")            
+
+        menu.offset = Offset(self.menu_offset.x, y_offset) 
+
+    def on_mouse_up(self) -> None:
+
+        self.dismiss(None)
+
+    @on(ButtonStatic.Pressed)
+    def button_pressed(self, event: ButtonStatic.Pressed) -> None:
+
+        if self.window:
+            if event.button.id == "lock_unlock":
+                self.window.toggle_lock()
+            elif event.button.id == "reset":
+                self.window.reset_window()
+
+
+class WindowBar(Horizontal):
+
+    DEFAULT_CSS = """
+    WindowBar {
+        align: center bottom;
+        background: $panel;     
+    }   
+    WindowBarButton, WindowBarBaseButton {
+        height: 1;
+        width: auto;
+        padding: 0 2;
+        &.onefr { width: 1fr; }
+        &:hover { background: $panel-lighten-2; }
+        &.pressed { background: $primary; color: $text; }
+        &.right_pressed { background: $accent-darken-3; color: $text; }
+    }
+    """  
+    
+    manager = window_manager
+    unnamed_window_counter: int = 1
+
+    dock: reactive[str] = reactive[str]("bottom", always_update=True)
+    """The direction to dock the bar. Can be either 'top' or 'bottom'.  
+    This can be changed in real-time. You can modify this directly if you wish."""
+
+    def __init__(
+        self, 
+        dock: DOCK_DIRECTION = "bottom",
+        start_open: bool = False,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+    ):
+        """Initialize a WindowBar.
+
+        Args:
+            dock: The direction to dock the bar. Can be either "top" or "bottom".  
+                You can also set this in the CSS. When set in the CSS, it will override
+                the constructor value.
+            height: The height of the bar. This is set in the CSS, but you can also set it here.
+            name: The name of the widget.
+            id: The ID of the widget in the DOM.
+            classes: The CSS classes for the widget.
+            disabled: Whether the widget is disabled or not.
+        """        
+        super().__init__(name=name, id=id, classes=classes, disabled=disabled)
+
+        if dock not in ["top", "bottom"]:
+            raise ValueError("Dock must be either 'top' or 'bottom'")
+        
+        self.start_open = start_open
+        self.display = start_open
+        self.initialized = False
+        self.set_reactive(WindowBar.dock, dock)     # triggering the reactive this early would not work.
+
+    #! OVERRIDE
+    def _on_mount(self, event: events.Mount) -> None:
+        super()._on_mount(event)
+
+        if self.styles.dock in ["left", "right"]:
+            raise ValueError("Dock must be either 'top' or 'bottom'")
+
+        elif self.styles.dock in ["top", "bottom"]:
+            self.log(f"Detected dock in CSS: {self.styles.dock}")
+            self.dock = self.styles.dock
+
+        else:              # No dock set in CSS, so set it to the constructor value.
+            self.dock = self.dock       # this will trigger the watch_dock method
+
+        self.manager.register_windowbar(self)
+
+    def _on_resize(self) -> None:
+        # Every time the bar is opened/shut or resized, it will automatically
+        # clamp (snap / lock) all the windows that are in snap/lock mode.
+
+        if self.initialized:
+            self.log.debug("Resizing WindowBar")
+            windows = self.manager.get_windows_as_list()
+            for window in windows:
+                if window.initialized and window.lock_state:
+                    self.call_after_refresh(window.clamp_into_parent_area)
+
+    def watch_dock(self, new_value: str) -> None:
+
+        try:
+            self.app.query_one(Header)
+        except NoMatches:
+            app_has_header = False
+        else:
+            app_has_header = True
+        try:
+            self.app.query_one(Footer)
+        except NoMatches:
+            app_has_footer = False
+        else:
+            app_has_footer = True            
+        
+        if new_value == "top":
+            self.styles.dock = "top"
+            self.styles.align = ("center", "bottom")
+            if app_has_header:
+                self.styles.height = 2
+            else:
+                self.styles.height = 1
+        elif new_value == "bottom":
+            self.styles.dock = "bottom"
+            self.styles.align = ("center", "top")
+            if app_has_footer:
+                self.styles.height = 2
+            else:
+                self.styles.height = 1
+        else:
+            raise ValueError("Dock must be either 'top' or 'bottom'")
+
+    ################
+    #~ Public API ~#
+    ################
+
+
+    async def build_window_buttons(self):
+        """This is called by the WindowManager when it detects the DOM is ready. It will
+        get all the windows that are registered with the WindowManager and create buttons
+        for them. If for some reason you mount or unmount windows in your app during runtime,
+        you will need to call this method again to refresh the buttons.
+        
+        #! Note to self: This could potentially be automatic. Future feature?"""
+
+        windows = self.manager.get_windows_as_list()
+        window_buttons: list[WindowBarButton | WindowBarBaseButton] = []
+        for window in windows:
+            if window.name:
+                window_buttons.append(WindowBarButton(
+                    window = window,
+                    window_bar = self,
+                    content = f"{window.name}",
+                    id = f"{window.id}_button"
+                ))
+            else:
+                window_buttons.append(WindowBarButton(
+                    window = window,
+                    window_bar = self,
+                    content=f"Unnamed Window {WindowBar.unnamed_window_counter}",
+                    id=f"unnamed_window_{WindowBar.unnamed_window_counter}_button"
+                ))
+                WindowBar.unnamed_window_counter += 1
+
+        window_buttons.insert(0, WindowBarBaseButton(
+            window_bar=self, id="windowbar_button_left", classes="onefr"
+        ))
+        window_buttons.append(WindowBarBaseButton(
+            window_bar=self, id="windowbar_button_right", classes="onefr"
+        ))                
+        await self.mount_all(window_buttons)
+        self.initialized = True
+        self.log.debug("WindowBar initialized")
+
+    def set_dock(self, dock: DOCK_DIRECTION = "bottom") -> None:
+        self.dock = dock
+
+    def toggle_bar(self):
+        self.display = not self.display
+
+
+

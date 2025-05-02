@@ -1,0 +1,47 @@
+[project]
+name = "textual-window"
+version = "0.1.0"
+description = "A Textual widget for a floating draggable window."
+readme = "README.md"
+requires-python = ">=3.8.1"
+authors = [
+    { name = "edward-jazzhands", email = "ed.jazzhands@gmail.com" }
+]
+
+license = { text = "MIT" }
+
+keywords = ["python", "textual", "tui", "window", "widget"]
+
+dependencies = [
+    "textual>=3.1.1",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.urls]
+Repository = "https://github.com/edward-jazzhands/textual-window"
+Changelog = "https://github.com/edward-jazzhands/textual-window/blob/master/Changelog.md"
+
+[dependency-groups]
+dev = [
+    "textual-dev>=1.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+textual-window = "textual_window.demo:run_demo"
+
