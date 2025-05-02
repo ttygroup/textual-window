@@ -5,6 +5,7 @@
 # ~ Formatting - Black - max 110 characters / line
 
 # Python imports:
+from __future__ import annotations
 from typing import cast
 
 # Textual imports:
