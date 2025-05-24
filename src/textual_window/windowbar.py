@@ -21,55 +21,18 @@ from textual.geometry import Offset
 from textual.screen import ModalScreen
 from textual.containers import Horizontal, Container
 from textual import events
-from textual.message import Message
-from textual.widgets import Static, Header, Footer
+
+# from textual.message import Message
+from textual.widgets import Header, Footer
 from textual.reactive import reactive
 from rich.emoji import Emoji
 
 # from textual.binding import Binding
 
 from textual_window.manager import window_manager  # The manager is a singleton instance
+from textual_window.button_bases import NoSelectStatic, ButtonStatic
 
 DOCK_DIRECTION = Literal["top", "bottom"]
-
-
-class NoSelectStatic(Static):
-
-    @property
-    def allow_select(self) -> bool:
-        return False
-
-
-class ButtonStatic(NoSelectStatic):
-
-    class Pressed(Message):
-        def __init__(self, button: ButtonStatic) -> None:
-            super().__init__()
-            self.button = button
-
-        @property
-        def control(self) -> ButtonStatic:
-            return self.button
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        self.capture_mouse()
-        self.add_class("pressed")
-
-    def on_mouse_up(self, event: events.MouseUp) -> None:
-
-        if self.app.mouse_captured == self:
-
-            self.remove_class("pressed")
-            self.release_mouse()
-            self.post_message(self.Pressed(self))
-
-    def on_leave(self, event: events.Leave) -> None:
-
-        if self.app.mouse_captured == self:
-
-            self.release_mouse()
-            self.remove_class("pressed")
 
 
 class WindowBarButton(NoSelectStatic):
@@ -78,35 +41,32 @@ class WindowBarButton(NoSelectStatic):
         super().__init__(content=content, **kwargs)
         self.window = window
         self.window_bar = window_bar
+        self.click_started_on: bool = False
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
 
-        self.capture_mouse()
         if event.button == 1:  # left click
             self.add_class("pressed")
         elif event.button == 2 or event.button == 3:  # middle or right click
             self.add_class("right_pressed")
+        self.click_started_on = True
 
     async def on_mouse_up(self, event: events.MouseUp) -> None:
 
-        if self.app.mouse_captured == self:
-
+        self.remove_class("pressed")
+        self.remove_class("right_pressed")
+        if self.click_started_on:
             if event.button == 1:  # left click
                 self.window.toggle_window()
             elif event.button == 2 or event.button == 3:  # middle or right click
                 self.show_popup()
-
-            self.remove_class("pressed")
-            self.remove_class("right_pressed")
-            self.release_mouse()
+            self.click_started_on = False
 
     def on_leave(self, event: events.Leave) -> None:
 
-        if self.app.mouse_captured == self:
-
-            self.release_mouse()
-            self.remove_class("pressed")
-            self.remove_class("right_pressed")
+        self.remove_class("pressed")
+        self.remove_class("right_pressed")
+        self.click_started_on = False
 
     @work
     async def show_popup(self) -> None:
@@ -126,27 +86,24 @@ class WindowBarBaseButton(NoSelectStatic):
     def __init__(self, window_bar: WindowBar, **kwargs: Any):
         super().__init__(**kwargs)
         self.window_bar = window_bar
+        self.click_started_on: bool = False
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
 
-        self.capture_mouse()
-        if event.button == 2 or event.button == 3:  # middle or right click
-            self.add_class("pressed")
+        self.add_class("pressed")
+        self.click_started_on = True
 
     async def on_mouse_up(self, event: events.MouseUp) -> None:
 
-        if self.app.mouse_captured == self:
-            if event.button == 2 or event.button == 3:  # middle or right click
-                self.show_popup(event)
-
-            self.remove_class("pressed")
-            self.release_mouse()
+        self.remove_class("pressed")
+        if self.click_started_on:
+            self.show_popup(event)
+            self.click_started_on = False
 
     def on_leave(self, event: events.Leave) -> None:
 
-        if self.app.mouse_captured == self:
-            self.release_mouse()
-            self.remove_class("pressed")
+        self.remove_class("pressed")
+        self.click_started_on = False
 
     @work
     async def show_popup(self, event: events.MouseUp) -> None:
@@ -206,13 +163,14 @@ class WindowBarMenu(ModalScreen[None]):
 
         with Container(id="menu_container"):
             if self.window:
-                yield ButtonStatic("Lock/Unlock", id="lock_unlock")
+                snap_label = "Unsnap" if self.window.snap_state else "Snap"
+                yield ButtonStatic(snap_label, id="snap_unsnap")
                 yield ButtonStatic("Reset", id="reset")
             elif self.window_bar:
                 yield ButtonStatic("Open all", id="open_all")
                 yield ButtonStatic("Close all", id="close_all")
-                yield ButtonStatic("Lock all", id="lock_all")
-                yield ButtonStatic("Unlock all", id="unlock_all")
+                yield ButtonStatic("Snap all", id="snap_all")
+                yield ButtonStatic("Unsnap all", id="unsnap_all")
                 yield ButtonStatic("Reset all", id="reset_all")
                 if self.window_bar.show_toggle_dock:
                     yield ButtonStatic(f"Toggle Dock {Emoji('arrow_up_down')}", id="toggle_dock")
@@ -244,8 +202,8 @@ class WindowBarMenu(ModalScreen[None]):
         # cleaner to just use nested if statements. You can see why.
 
         if self.window:
-            if event.button.id == "lock_unlock":
-                self.window.toggle_lock()
+            if event.button.id == "snap_unsnap":
+                self.window.toggle_snap()
             elif event.button.id == "reset":
                 self.window.reset_window()
         elif self.window_bar:
@@ -253,10 +211,10 @@ class WindowBarMenu(ModalScreen[None]):
                 self.window_bar.manager.open_all_windows()
             elif event.button.id == "close_all":
                 self.window_bar.manager.close_all_windows()
-            elif event.button.id == "lock_all":
-                self.window_bar.manager.lock_all_windows()
-            elif event.button.id == "unlock_all":
-                self.window_bar.manager.unlock_all_windows()
+            elif event.button.id == "snap_all":
+                self.window_bar.manager.snap_all_windows()
+            elif event.button.id == "unsnap_all":
+                self.window_bar.manager.unsnap_all_windows()
             elif event.button.id == "reset_all":
                 self.window_bar.manager.reset_all_windows()
             elif event.button.id == "toggle_dock":
@@ -348,7 +306,7 @@ class WindowBar(Horizontal):
             self.log.debug("Resizing WindowBar")
             windows = self.manager.get_windows_as_list()
             for window in windows:
-                if window.initialized and window.lock_state:
+                if window.initialized and window.snap_state:
                     self.call_after_refresh(window.clamp_into_parent_area)
 
     def watch_dock(self, new_value: str) -> None:

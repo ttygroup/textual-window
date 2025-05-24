@@ -49,14 +49,26 @@ class WindowManager(DOMNode):
         Windows do this automatically when they are mounted. There should not be any
         need to call this method manually."""
 
-        self.windows[window.layer] = window
+        if window.name:
+            self.windows[window.name] = window
+        else:
+            raise ValueError(
+                "Window name is not set. "
+                "Please set the name of the window before registering it with the manager."
+            )
 
     def remove_window(self, window: Window) -> None:
         """Used by windows to unregister with the manager.
         Windows do this automatically when they are unmounted. There should not be any
         need to call this method manually."""
 
-        self.windows.pop(window.layer)
+        if window.name in self.windows:
+            self.windows.pop(window.name)
+        else:
+            raise ValueError(
+                "Window name not found in the manager. "
+                "Please make sure the window is registered with the manager before unregistering it."
+            )
 
     def get_windows_as_dict(self) -> dict[str, Window]:
         """Get a dictionary of all windows."""
@@ -77,7 +89,13 @@ class WindowManager(DOMNode):
         self.windows: dict[str, Window] = {}
         windows = self.app.query(Window)
         for window in windows:
-            self.windows[window.layer] = window
+            if window.name:
+                self.windows[window.name] = window
+            else:
+                raise ValueError(
+                    "Window name is not set. "
+                    "Please set the name of the window before registering it with the manager."
+                )
 
     def register_windowbar(self, windowbar: WindowBar) -> None:
         """Register the windowbar with the manager. This is done automatically when the
@@ -112,15 +130,15 @@ class WindowManager(DOMNode):
         for window in self.windows.values():
             window.open_state = False
 
-    def lock_all_windows(self) -> None:
+    def snap_all_windows(self) -> None:
         """Lock all windows."""
         for window in self.windows.values():
-            window.lock_state = True
+            window.snap_state = True
 
-    def unlock_all_windows(self) -> None:
-        """Unlock all windows."""
+    def unsnap_all_windows(self) -> None:
+        """Unsnap all windows."""
         for window in self.windows.values():
-            window.lock_state = False
+            window.snap_state = False
 
     def reset_all_windows(self) -> None:
         """Reset all windows to their starting position and size."""
@@ -145,7 +163,7 @@ class WindowManager(DOMNode):
     def debug(self) -> None:
         """Log self.windows and self.app on the WindowManager to console."""
         self.log.debug(self.windows)
-        self.log.debug(f"self.app: {self.app}" f"Layers: {self.app.screen.styles.layers}")
+        self.log.debug(f"Layers: \n{self.app.screen.styles.layers}")
 
     def watch_for_dom_ready_runner(self):
 

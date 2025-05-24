@@ -27,16 +27,20 @@ from textual.widgets import (
 )
 
 # Local imports:
-from textual_window import Window, WindowBar
+from textual_window import Window, WindowBar, WindowSwitcher
 
 
-lorem_ipsum = """Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut 
-aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in 
-voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint 
-occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit 
+lorem_ipsum = """Lorem ipsum dolor sit amet, consectetur adipiscing elit. \
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut \
+aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in \
+voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint \
+occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit \
 anim id est laborum."""
+
+static_info = """Try right-clicking the buttons on the WindowBar (below) to see \
+window-specific context menus. You can also left or right-click on the WindowBar itself to \
+see a global context menu."""
 
 
 class MyWindow(Window):
@@ -55,11 +59,16 @@ class MyWindow(Window):
 class WindowDemo(App[None]):
 
     CSS = """
-    RichLog { border: outer $secondary; width: 80%; height: 80%; }
-    Screen { align: center middle; }
+    RichLog { border: outer $secondary; width: 80%; height: 4fr; margin: 2 0;}
     # WindowBar { dock: top; }       /* Setting dock here will override the constructor setting */
     #main_container { align: center middle; }
     #center_content { align: center middle; }
+    #info_container { 
+        width: 80%; height: 1fr;
+        content-align: center middle;
+        border: solid $primary;
+        margin: 0 0 1 0; padding: 0 1;
+    }
     #window0 {                         
         width: 25; height: 13;      
         min-width: 22; min-height: 13;      /* These min and max settings will be respected */
@@ -73,20 +82,29 @@ class WindowDemo(App[None]):
     """
 
     BINDINGS = [
-        Binding("ctrl+w", "toggle_windowbar", "Toggle Window Bar"),
-        Binding("f1", "toggle_window1", "Window 1", key_display="F1"),
+        Binding("ctrl+e", "toggle_windowbar", "Window Bar"),
+        Binding("f1", "toggle_switcher", "Window Switcher", key_display="F1"),
     ]
 
     app_initialized: bool = False
 
     def compose(self) -> ComposeResult:
 
+        window1_menu_options = {
+            "Callback 1": self.callback_1,
+            "Callback 2": self.callback_2,
+        }
+
+        yield WindowSwitcher()
         yield WindowBar(start_open=True)  # If you have either a Header or Footer, WindowBar Must go
         # yield Header()         # before them in the compose method. Otherwise it will cover them up.
 
         with Container(id="main_container"):
 
             # * There are 3 different ways to add children to a widget in Textual,
+            # 1) Context manager
+            # 2) Pass a list of widgets to the constructor
+            # 3) Custom widget with compose method
             # and all of them work with the Window widget:
 
             # 1) Context manager:
@@ -95,7 +113,6 @@ class WindowDemo(App[None]):
                 name="Window 0",
                 starting_horizontal="center",
                 starting_vertical="uppermiddle",
-                show_lock_button=True,  # This is False by default.
             ):
                 yield TextArea(id="input1")
                 with Horizontal(classes="button_container"):
@@ -111,6 +128,7 @@ class WindowDemo(App[None]):
                 starting_horizontal="left",
                 starting_vertical="middle",
                 show_maximize_button=True,
+                menu_options=window1_menu_options,
             )
 
             # 3) Custom widget with compose method:
@@ -125,7 +143,9 @@ class WindowDemo(App[None]):
             )
 
             with Container(id="center_content"):
-                yield RichLog(id="rich_log")
+                self.rich_log = RichLog(id="rich_log")
+                yield self.rich_log
+                yield Static(static_info, id="info_container")
 
         # yield WindowBar()      # If you have either a Header or Footer, WindowBar Must go
         yield Footer()  # before them in the compose method. Otherwise it will cover them up.
@@ -133,32 +153,42 @@ class WindowDemo(App[None]):
     def on_mount(self) -> None:
         main_container = self.query_one("#main_container")
         main_container.styles.opacity = 0.0  # Chad loading screen
+        self.query_one(RichLog).can_focus = False
 
-    ###############################
-    # ~ Window Events and Actions ~#
-    ###############################
+    ################################
+    # ~ Hamburger Menu Callbacks ~ #
+    ################################
+
+    def callback_1(self) -> None:
+        self.rich_log.write("Callback 1")
+
+    def callback_2(self) -> None:
+        self.rich_log.write("Callback 2")
+        self.notify("Callback 2")
+
+    #################################
+    # ~ Window Events and Actions ~ #
+    #################################
 
     def action_toggle_windowbar(self) -> None:
 
         windowbar = self.query_one(WindowBar)
         windowbar.toggle_bar()
 
-    def action_toggle_window1(self) -> None:
+    def action_toggle_switcher(self) -> None:
 
-        window1 = cast(Window, self.query_one("#window1"))
-        window1.toggle_window()
+        cycler = self.query_one(WindowSwitcher)
+        cycler.show()
 
     @on(Window.Closed)
     def window_closed(self, event: Window.Closed) -> None:
 
-        richlog = cast(RichLog, self.query_one("#rich_log"))
-        richlog.write(Text.from_markup(f"{event.window.id} [red]closed."))
+        self.rich_log.write(Text.from_markup(f"{event.window.id} [red]closed."))
 
     @on(Window.Opened)
     def window_opened(self, event: Window.Opened) -> None:
 
-        richlog = cast(RichLog, self.query_one("#rich_log"))
-        richlog.write(Text.from_markup(f"{event.window.id} [green]opened."))
+        self.rich_log.write(Text.from_markup(f"{event.window.id} [green]opened."))
 
     @on(Window.Initialized)
     def window_initialized(self, event: Window.Initialized) -> None:
@@ -166,8 +196,7 @@ class WindowDemo(App[None]):
         # Generally speaking, once one window is initialized, you can be confident
         # they're all ready to go and you can disable any loading screen you might have.
 
-        richlog = cast(RichLog, self.query_one("#rich_log"))
-        richlog.write(Text.from_markup(f"{event.window.id} [blue]initialized."))
+        self.rich_log.write(Text.from_markup(f"{event.window.id} [blue]initialized."))
         self.log(f"{event.window.id} initialized.")
 
         if not self.app_initialized:
@@ -175,23 +204,21 @@ class WindowDemo(App[None]):
             main_container.styles.animate("opacity", value=1.0, duration=0.5)  # Chad loading screen
             self.app_initialized = True
 
-    ##################
-    # ~ Other Events ~#
-    ##################
+    ####################
+    # ~ Other Events ~ #
+    ####################
 
     @on(Button.Pressed, "#button1")
     def button1_pressed(self) -> None:
 
         textarea = cast(TextArea, self.query_one("#input1"))
-        richlog = cast(RichLog, self.query_one("#rich_log"))
-        richlog.write(textarea.text)
+        self.rich_log.write(textarea.text)
         textarea.text = ""
 
     @on(Checkbox.Changed)
     def checkbox_changed(self, event: Checkbox.Changed) -> None:
 
-        richlog = cast(RichLog, self.app.query_one("#rich_log"))
-        richlog.write(f"Checkbox changed to {event.value}")
+        self.rich_log.write(f"Checkbox changed to {event.value}")
 
 
 def run_demo():

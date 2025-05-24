@@ -6,7 +6,7 @@ The Window manager is a singleton. Import `window_manager` to use it."""
 # ~ Formatting - Black - max 110 characters / line
 
 from __future__ import annotations
-from typing import Literal, Any, TYPE_CHECKING
+from typing import Literal, Any, TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from textual.visual import VisualType
@@ -15,16 +15,22 @@ import textual.events as events
 from textual._compose import compose  # type: ignore (not exported from module. Can't fix this.)
 from textual.widget import Widget
 from textual.message import Message
+from textual.binding import Binding
 
-# from textual.css.query import NoMatches
+from textual import on, work
+from textual.app import ComposeResult
 from textual.geometry import clamp, Size
-from textual.widgets import Static
-from textual.containers import Horizontal, VerticalScroll
+
+# from textual.widgets import Static
+from textual.containers import Horizontal, VerticalScroll, Container
+from textual.screen import ModalScreen
 from textual.geometry import Offset
 from textual.reactive import reactive
-from rich.emoji import Emoji
+
+# from rich.emoji import Emoji
 
 from textual_window.manager import window_manager
+from textual_window.button_bases import ButtonStatic, NoSelectStatic
 
 __all__ = ["Window"]
 
@@ -33,11 +39,60 @@ STARTING_VERTICAL = Literal["top", "uppermiddle", "middle", "lowermiddle", "bott
 STARTING_HORIZONTAL = Literal["left", "centerleft", "center", "centerright", "right"]
 
 
-class NoSelectStatic(Static):
+class HamburgerMenu(ModalScreen[None]):
 
-    @property
-    def allow_select(self) -> bool:
-        return False
+    CSS = """
+    HamburgerMenu {
+        background: $background 0%;
+        align: left top;    /* This will set the starting coordinates to (0, 0) */
+    }                       /* Which we need for the absolute offset to work */
+    #menu_container {
+        background: $surface;
+        width: 14; height: 2;
+        border-left: wide $panel;
+        border-right: wide $panel;        
+        &.bottom { border-top: hkey $panel; }
+        &.top { border-bottom: hkey $panel; }
+        & > ButtonStatic {
+            &:hover { background: $panel-lighten-2; }
+            &.pressed { background: $primary; }        
+        }
+    }
+    """
+
+    def __init__(
+        self,
+        menu_offset: Offset,
+        window: Window,
+        options: dict[str, Callable[..., Optional[Any]]],
+    ) -> None:
+
+        super().__init__()
+        self.menu_offset = menu_offset
+        self.window = window
+        self.options = options
+
+    def compose(self) -> ComposeResult:
+
+        with Container(id="menu_container"):
+            for key in self.options.keys():
+                yield ButtonStatic(key, name=key)
+
+    def on_mount(self) -> None:
+
+        menu = self.query_one("#menu_container")
+        y_offset = self.menu_offset.y - 2 if self.menu_offset.y >= 2 else 0
+        menu.offset = Offset(self.menu_offset.x - 9, y_offset)
+
+    def on_mouse_up(self) -> None:
+
+        self.dismiss(None)
+
+    @on(ButtonStatic.Pressed)
+    def button_pressed(self, event: ButtonStatic.Pressed) -> None:
+
+        if event.button.name:
+            self.call_after_refresh(self.options[event.button.name])
 
 
 class CloseButton(NoSelectStatic):
@@ -45,54 +100,80 @@ class CloseButton(NoSelectStatic):
     def __init__(self, content: VisualType, window: Window, **kwargs: Any):
         super().__init__(content=content, **kwargs)
         self.window = window
+        self.click_started_on: bool = False  # see note below
+
+        # You might think that using self.capture_mouse() here would be simpler than
+        # using a flag. But it causes issues. capture_mouse really shines when it's
+        # used on buttons that need to move around the screen. (And it is used for that
+        # purpose below). But for this button and several others, they will never be moving
+        # around while actively trying to click them. So using capture_mouse() causes various
+        # small issues that are totally unnecessary. (inconsistent behavior, glitchiness, etc.)
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
 
         if event.button == 1:  # left button
-            self.capture_mouse()
+            self.click_started_on = True
             self.add_class("pressed")
             self.window.bring_forward()
 
-    def on_mouse_up(self, event: events.MouseUp) -> None:
+    def on_mouse_up(self) -> None:
 
-        if self.app.mouse_captured == self:
-            self.remove_class("pressed")
+        self.remove_class("pressed")
+        if self.click_started_on:
             self.window.close_window()
-            self.release_mouse()
+            self.click_started_on = False
 
-    def on_leave(self, event: events.Leave) -> None:
+    def on_leave(self) -> None:
 
-        if self.app.mouse_captured == self:
-            self.release_mouse()
-            self.remove_class("pressed")
+        self.remove_class("pressed")
+        self.click_started_on = False
 
 
-class LockButton(NoSelectStatic):
+class HamburgerButton(NoSelectStatic):
 
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
+    def __init__(
+        self,
+        content: VisualType,
+        window: Window,
+        options: dict[str, Callable[..., Optional[Any]]],
+        **kwargs: Any,
+    ):
         super().__init__(content=content, **kwargs)
         self.window = window
+        self.options = options
+        self.click_started_on: bool = False
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
 
         if event.button == 1:  # left button
-            # self.capture_mouse()          #! Capturing here causes a bug with the on_leave method.
-            self.add_class("pressed")  #! Seems like it might be some deeper textual issue.
-            self.window.bring_forward()  #! This is identical to the CloseButton class yet it behaves differently.
+            self.click_started_on = True
+            self.add_class("pressed")
+            self.window.bring_forward()
 
-    def on_mouse_up(self, event: events.MouseUp) -> None:
-
-        # if self.app.mouse_captured == self:       #! We just won't have capturing on this button for now.
+    async def on_mouse_up(self, event: events.MouseUp) -> None:
 
         self.remove_class("pressed")
-        self.window.toggle_lock()
-        # self.release_mouse()
+        if self.click_started_on:
+            self.show_popup(event)
+            self.click_started_on = False
 
-    def on_leave(self, event: events.Leave) -> None:
+    def on_leave(self) -> None:
 
-        # if self.app.mouse_captured == self:
-        # self.release_mouse()
         self.remove_class("pressed")
+        self.click_started_on = False
+
+    @work
+    async def show_popup(self, event: events.MouseUp) -> None:
+
+        menu_offset = event.screen_offset
+
+        await self.app.push_screen_wait(
+            HamburgerMenu(
+                menu_offset=menu_offset,
+                window=self.window,
+                options=self.options,
+            )
+        )
 
 
 class MaximizeButton(NoSelectStatic):
@@ -100,26 +181,37 @@ class MaximizeButton(NoSelectStatic):
     def __init__(self, content: VisualType, window: Window, **kwargs: Any):
         super().__init__(content=content, **kwargs)
         self.window = window
+        self.click_started_on: bool = False
+        self.tooltip = "Maximize" if self.window.maximize_state is False else "Restore"
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
 
         if event.button == 1:  # left button
-            self.capture_mouse()
+            self.click_started_on = True
             self.add_class("pressed")
             self.window.bring_forward()
 
-    def on_mouse_up(self, event: events.MouseUp) -> None:
+    def on_mouse_up(self) -> None:
 
-        if self.app.mouse_captured == self:
-            self.remove_class("pressed")
+        self.remove_class("pressed")
+        if self.click_started_on:
             self.window.toggle_maximize()
-            self.release_mouse()
+            self.click_started_on = False
 
-    def on_leave(self, event: events.Leave) -> None:
+    def on_leave(self) -> None:
 
-        if self.app.mouse_captured == self:
-            self.release_mouse()
-            self.remove_class("pressed")
+        self.remove_class("pressed")
+        self.click_started_on = False
+
+    def swap_in_restore_icon(self) -> None:
+
+        self.update(" - ")
+        self.tooltip = "Restore"
+
+    def swap_in_maximize_icon(self) -> None:
+
+        self.update(" ☐ ")
+        self.tooltip = "Maximize"
 
 
 class Resizer(NoSelectStatic):
@@ -173,7 +265,7 @@ class Resizer(NoSelectStatic):
             self.capture_mouse()
             self.window.bring_forward()
 
-    def on_mouse_up(self, event: events.MouseUp) -> None:
+    def on_mouse_up(self) -> None:
 
         self.remove_class("pressed")
         self.release_mouse()
@@ -189,7 +281,7 @@ class TitleBar(NoSelectStatic):
     def on_mouse_move(self, event: events.MouseMove) -> None:
 
         if self.app.mouse_captured == self:
-            if not self.window.lock_state:  # not locked, can move freely
+            if not self.window.snap_state:  # not locked, can move freely
                 self.window.offset = self.window.offset + event.delta
             else:  # else, if locked to parent:
                 assert isinstance(self.window.parent, Widget)
@@ -207,7 +299,7 @@ class TitleBar(NoSelectStatic):
             self.capture_mouse()
             self.window.bring_forward()
 
-    def on_mouse_up(self, event: events.MouseUp) -> None:
+    def on_mouse_up(self) -> None:
 
         self.remove_class("pressed")
         self.release_mouse()
@@ -219,23 +311,26 @@ class TopBar(Horizontal):
         self,  # but it gives better type hinting and allows for more advanced
         window: Window,  # dependeny injection of the window down to children widgets.
         window_title: str | None,
+        options: dict[str, Callable[..., Optional[Any]]],
     ):
         super().__init__()
         self.window = window
         self.window_title = window_title if window_title else ""
-        self.lock_button = None
+        self.options = options
+        self.hamburger_button = None  #! why is this here again?
 
     def compose(self):
 
         yield TitleBar(self.window_title, window=self.window)
+        if self.options:
+            self.hamburger_button = HamburgerButton(" ☰ ", window=self.window, options=self.options)
+            yield self.hamburger_button
         if self.window.show_maximize_button:
             self.maximize_button = MaximizeButton(" ☐ ", window=self.window)
             yield self.maximize_button
-        if self.window.show_lock_button:
-            emoji = Emoji("lock") if self.window.lock_state else Emoji("unlock")
-            self.lock_button = LockButton(emoji, window=self.window)
-            yield self.lock_button
         yield CloseButton(" X ", window=self.window)
+
+        self.app.screen.maximize
 
 
 class BottomBar(Horizontal):
@@ -253,7 +348,17 @@ class BottomBar(Horizontal):
 class Window(Widget):
 
     DEFAULT_CSS = """
-    Window { width: 20; height: 10; min-width: 12; min-height: 6; }
+    Window {
+        width: 20; height: 10;
+        min-width: 12; min-height: 6;
+        &:focus { 
+            & > TopBar, BottomBar { background: $secondary; }
+            & > #content_pane { 
+                border-left: wide $secondary;
+                border-right: wide $secondary;
+            }
+        }
+    }
     TopBar, BottomBar {
         height: 1; max-height: 1; width: 1fr;
         background: $panel-lighten-1; 
@@ -273,13 +378,13 @@ class Window(Widget):
         &:hover { background: $panel-lighten-3; }
         &.pressed { background: $primary; color: $text; }        
     }    
-    LockButton {
-        width: 2; height: 1; padding: 0;
+    HamburgerButton {
+        width: 3; height: 1; padding: 0;
         &:hover { background: $panel-lighten-3; }
         &.pressed { background: $primary; }        
     }    
     Resizer {
-        width: 1; height: 1; padding: 0;
+        width: 2; height: 1; padding: 0; content-align: right middle;
         &:hover { background: $panel-lighten-3; }
         &.pressed { background: $primary; }
     }
@@ -293,21 +398,41 @@ class Window(Widget):
         width: 1fr; height: 1fr;
     }    
     """
+
+    # Copying bindings from the ScrollableContainer class in order to control
+    # the scrolling of the content pane while the Window widget itself has
+    # the focus. The VerticalScroll is set to not be focusable.
+    BINDINGS = [
+        Binding("ctrl+w", "close_window", "Close Window"),
+        # All these below from ScrollableContainer:
+        Binding("up", "scroll_up", "Scroll Up", show=False),
+        Binding("down", "scroll_down", "Scroll Down", show=False),
+        Binding("home", "scroll_home", "Scroll Home", show=False),
+        Binding("end", "scroll_end", "Scroll End", show=False),
+        Binding("pageup", "page_up", "Page Up", show=False),
+        Binding("pagedown", "page_down", "Page Down", show=False),
+        # Binding("left", "scroll_left", "Scroll Left", show=False),
+        # Binding("right", "scroll_right", "Scroll Right", show=False),
+        # Binding("ctrl+pageup", "page_left", "Page Left", show=False),
+        # Binding("ctrl+pagedown", "page_right", "Page Right", show=False),
+    ]
+
     ###############
     #  REACTIVES  #
     ###############
-    open_state: reactive[bool] = reactive[bool](False)
+    open_state: reactive[bool] = reactive(False, init=False)
     "The open/closed state of the window. You can modify this directly if you wish."
-    lock_state: reactive[bool] = reactive[bool](True)
+    snap_state: reactive[bool] = reactive(True, init=False)
     "The lock state (snap to parent) of the window. You can modify this directly if you wish."
-    maximize_state: reactive[bool] = reactive[bool](False)
+    maximize_state: reactive[bool] = reactive(False, init=False)
     "The maximize state of the window. You can modify this directly if you wish."
 
     #####################
     # Other class setup #
     #####################
     manager = window_manager  # ~ Reference the window manager instance.
-    _current_layer = 0  # Class variable to track the next available layer
+    _current_layer = 0  #   Class variable to track the next available layer
+    can_focus = True
 
     class Closed(Message):
         """Message sent when the window is closed."""
@@ -348,16 +473,15 @@ class Window(Widget):
         starting_horizontal: STARTING_HORIZONTAL = "center",
         starting_vertical: STARTING_VERTICAL = "middle",
         start_open: bool = False,
+        start_snapped: bool = True,
         allow_resize: bool = True,
-        snap_to_parent: bool = True,
-        animated: bool = True,
-        show_lock_button: bool = False,
         show_maximize_button: bool = False,
+        menu_options: dict[str, Callable[..., Optional[Any]]] = {},
+        animated: bool = True,
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
         disabled: bool = False,
-        markup: bool = True,
     ):
         """Initialize a window widget.
         Args:
@@ -365,13 +489,17 @@ class Window(Widget):
             starting_horizontal (str): The starting horizontal position of the window.
             starting_vertical (str): The starting vertical position of the window.
             start_open (bool): Whether the window should start open or closed.
+            start_snapped (bool): Whether the window should start snapped (locked) within the parent area.
             allow_resize (bool): Whether the window should be resizable.
-            snap_to_parent (bool): Whether the window should stay within the parent area.
             animated (bool): Whether the window should be animated.
                 This will add a fade in/out effect when opening/closing the window. You can modify
                 the `animation_duration` attribute to change the duration of the animation.
-            show_lock_button (bool): Whether to show the lock (snap) button on the top bar.
             show_maximize_button (bool): Whether to show the maximize button on the top bar.
+            menu_options (dict): A dictionary of options to show in a hamburger menu.
+                The hamburger menu will be shown automatically if you pass in any options.
+                The key is the name of the option as it will be displayed in the menu.
+                The value is a callable that will be called when the option is selected.
+                #! add note about functools partial?
             name: The name of the widget - Used for the window's title bar and the WindowBar class
             id: The ID of the widget in the DOM.
             classes: The CSS classes for the widget.
@@ -384,29 +512,38 @@ class Window(Widget):
             id=id,
             classes=classes,
             disabled=disabled,
-            markup=markup,
         )
         self.initialized = False
         if start_open is False and animated is True:
             self.styles.opacity = 0.0
         self.display = start_open
         self.start_open = start_open  # This is saved for resetting the window.
-        self.starting_lock_state = snap_to_parent  # Snap and Lock mean the same thing in this context.
-        self.set_reactive(
-            Window.open_state, start_open
-        )  # Don't want to trigger the open/close animation here.
-        self.set_reactive(Window.lock_state, snap_to_parent)  # Likewise, this is handled manually.
+        self.starting_snap_state = start_snapped  # Snap and Lock mean the same thing in this context.
+        self.set_reactive(Window.open_state, start_open)  # Don't want to trigger the open/close animation.
+        self.set_reactive(Window.snap_state, start_snapped)  # Likewise, this is handled manually.
+        self.set_reactive(Window.maximize_state, False)  # This is handled manually as well.
+
         self.starting_horizontal = starting_horizontal
         self.starting_vertical = starting_vertical
         self.allow_resize = allow_resize
         self.animated = animated
-        self.show_lock_button = show_lock_button
         self.show_maximize_button = show_maximize_button
+        self.menu_options = menu_options
 
         # SECONDARY ATTRIBUTES (non-constructor)
-        self.auto_bring_forward = True  # If windows should be brought forward when opened.
+        self.auto_bring_forward = True  #       If windows should be brought forward when opened.
+        self.auto_focus = True  #               If windows should be focused when opened.
         self.animation_duration: float = 0.3  # The duration of the fade effect, if enabled
-        # self.disable_modifying_lock_state = False    #! [N/I] Whether it should be possible to modify the lock state.
+
+        # self.disable_modifying_snap_state = False    #! [N/I] Whether it should be possible to modify the lock state.
+
+        # EXTRAS
+        self.saved_size: Size | None = (
+            None  # This is used to save the size of the window when it is maximized.
+        )
+        self.saved_offset: Offset | None = (
+            None  # This is used to save the offset of the window when it is maximized.
+        )
 
         # -------------------------------------------------------------------------#
 
@@ -419,8 +556,8 @@ class Window(Widget):
         # When someone uses the window, any children they pass in will be mounted
         # into the content pane. The top and bottom bars are fixed.
 
-        self._top_bar = TopBar(window=self, window_title=self.name)
-        self._content_pane = VerticalScroll(id="content_pane")
+        self._top_bar = TopBar(window=self, window_title=self.name, options=self.menu_options)
+        self._content_pane = VerticalScroll(id="content_pane", can_focus=False)
         self._bottom_bar = BottomBar(window=self)
 
         self._window_base_widgets: list[Widget] = [
@@ -594,15 +731,10 @@ class Window(Widget):
     # ~ WATCH METHODS ~#
     ####################
 
-    def watch_lock_state(self, value: bool) -> None:
+    def watch_snap_state(self, value: bool) -> None:
 
         if value:
-            if self._top_bar.lock_button is not None:
-                self._top_bar.query_one(LockButton).update(Emoji("locked"))
             self.clamp_into_parent_area()
-        else:
-            if self._top_bar.lock_button is not None:
-                self._top_bar.query_one(LockButton).update(Emoji("unlocked"))
 
     def watch_open_state(self, value: bool) -> None:
 
@@ -610,6 +742,8 @@ class Window(Widget):
             self._open_animation()
             if self.auto_bring_forward:
                 self.bring_forward()
+            if self.auto_focus:
+                self.focus()
             self.post_message(self.Opened(self))
         else:
             self._close_animation()
@@ -621,16 +755,48 @@ class Window(Widget):
     def watch_maximize_state(self, value: bool) -> None:
 
         if value:
+            self.saved_size = Size(self.size.width, self.size.height)
+            self.saved_offset = Offset(self.offset.x, self.offset.y)
             self.styles.width = self.max_width
             self.styles.height = self.max_height
+            self._top_bar.maximize_button.swap_in_restore_icon()
             self.call_after_refresh(self.clamp_into_parent_area)
         else:
-            self.reset_size()
-            self.reset_position()
+            assert self.saved_size is not None, "This should never happen."
+            assert self.saved_offset is not None, "This should never happen."
+            self.styles.width = self.saved_size.width
+            self.styles.height = self.saved_size.height
+            self.offset = self.saved_offset
+            self._top_bar.maximize_button.swap_in_maximize_icon()
 
-    ################
-    # ~ Public API ~#
-    ################
+    ###############
+    # ~ Actions ~ #
+    ###############
+
+    def action_close_window(self) -> None:
+        self.close_window()
+
+    def action_scroll_up(self) -> None:
+        self._content_pane.action_scroll_up()
+
+    def action_scroll_down(self) -> None:
+        self._content_pane.action_scroll_down()
+
+    def action_scroll_home(self) -> None:
+        self._content_pane.action_scroll_home()
+
+    def action_scroll_end(self) -> None:
+        self._content_pane.action_scroll_end()
+
+    def action_page_up(self) -> None:
+        self._content_pane.action_page_up()
+
+    def action_page_down(self) -> None:
+        self._content_pane.action_page_down()
+
+    ##################
+    # ~ Public API ~ #
+    ##################
 
     def bring_forward(self):
         """This is called automatically when the window is opened, as long as
@@ -667,28 +833,28 @@ class Window(Widget):
         """Toggle the window open and closed."""
         self.open_state = not self.open_state
 
-    def enable_lock(self):
-        """Enable window locking (set lock_state to True)"""
-        self.lock_state = True
+    def enable_snap(self):
+        """Enable window locking (set snap_state to True)"""
+        self.snap_state = True
 
-    def disable_lock(self):
-        """Disable window locking (set lock_state to False)"""
-        self.lock_state = False
-
-    def toggle_lock(self) -> None:
-        """Toggle the window lock (snap) state."""
-        self.lock_state = not self.lock_state
+    def disable_snap(self):
+        """Disable window locking (set snap_state to False)"""
+        self.snap_state = False
 
     def toggle_snap(self) -> None:
-        """Alias for toggle_lock(). Toggle the window lock (snap) state."""
-        self.lock_state = not self.lock_state
+        """Toggle the window snap (lock) state."""
+        self.snap_state = not self.snap_state
+
+    def toggle_lock(self) -> None:
+        """Alias for toggle_snap(). Toggle the window snap (lock) state."""
+        self.snap_state = not self.snap_state
 
     def reset_window(self) -> None:
         """Reset the window to its starting position and size."""
 
         self.reset_size()
         self.reset_position()
-        self.lock_state = self.starting_lock_state
+        self.snap_state = self.starting_snap_state
 
         if self.start_open:
             self.open_state = True

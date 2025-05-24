@@ -1,4 +1,32 @@
-# Features to Add
+# Features checklist
+
+## Features to add (0.3.0)
+
+- [ ] Add option to make the WindowBar floating.
+- [ ] Implement way to deal with relative sizes.  
+- [ ] Add switch between snapping to parent container and snapping to screen.  
+- [ ] Add the disable snap state feature.  - ????
+- [ ] Turn allow_resize into a reactive variable.
+- [ ] Add a way to change the mouse controls, something other than right-clicking
+- [ ] Add a Modal window option (Modal screen + window combo)
+- [ ] Figure out best way to implement highlight window on mouse hover
+
+## Features to add (0.2.0)
+
+## Finished (0.2.0)
+
+- [X] Maximize symbol should change to '_' symbol after maximizing
+- [X] Restoring (unmaximizing) a window should restore to its previous state
+- [X] Make the resize button slightly larger
+- [X] Replace lock button with a generic hamburger menu ☰
+- [x] Build a custom command system for the hamburger menu
+- [X] Add help info about right clicking behavior into the demo
+- [X] Add snap/lock state indicator for windows on the WindowBar.
+- [X] Build window focus cycler screen
+- [X] Build way to focus windows / tell which is focused
+- [X] Pass through focus controls to inner content_pane (content_pane focusing now disabled)
+
+## Finished (0.1.0)
 
 - [X] Add a close button to the top bar.  
 - [X] Add a lock to screen option.  
@@ -14,12 +42,7 @@
 - [X] Add an intialized message to complement the Reset message.  
 - [X] Add setting to dock WindowBar to the top instead of the bottom.  
 - [X] Fix initialization if all windows start with display=False
-- [X] Add another generic WindowBar menu for all windows.
+- [X] Add a generic WindowBar menu for all windows.
 - [X] Implement a maximize ability.
 - [X] Implement start_open option in WindowBar.
-- [ ] Add option to change WindowBar dock.
-- [ ] Add switch between locking to parent container and locking to screen.  
-- [ ] Implement way to deal with relative sizes.  
-- [ ] Add the disable lock state feature.  
-- [ ] Add option to make the WindowBar floating.
-- [ ] Turn allow_resize into a reactive variable.
+- [X] Add option to change WindowBar dock in real-time menu.
