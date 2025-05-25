@@ -8,20 +8,22 @@ You don't need to import from this module. You can simply do:
 # ~ Formatting - Black - max 110 characters / line
 
 from __future__ import annotations
-from typing import Literal, Any, TYPE_CHECKING, Callable, Optional
+from typing import Literal, Any, TYPE_CHECKING, Callable, Optional, Iterable
+from textual.await_remove import AwaitRemove
 from typing_extensions import Self
 
 if TYPE_CHECKING:
     from textual.visual import VisualType
+    from textual.css.query import QueryType
+    from textual.app import ComposeResult
 
 import textual.events as events
 from textual._compose import compose  # type: ignore[unused-ignore]
-from textual.widget import Widget
+from textual.widget import Widget, AwaitMount
 from textual.message import Message
 from textual.binding import Binding
 
 from textual import on, work
-from textual.app import ComposeResult
 from textual.geometry import clamp, Size
 
 # from textual.widgets import Static
@@ -887,10 +889,97 @@ class Window(Widget):
         self.offset = self.starting_offset
 
     def clamp_into_parent_area(self) -> None:
-        """This function returns the widget into its parent area.
+        """This function returns the widget into its parent area. \n
         There shouldn't be any need to call this manually, but it is here if you need it."""
 
         if self.initialized:
             assert isinstance(self.parent, Widget)
             x, y = self.parent.size - self.size
             self.offset = Offset(clamp(self.offset.x, 0, x), clamp(self.offset.y, 0, y))
+
+    def mount_in_window(
+        self,
+        *widgets: Widget,
+        before: int | str | Widget | None = None,
+        after: int | str | Widget | None = None,
+    ) -> AwaitMount:
+        """Mount widgets inside of the window. \n
+        Do not use `mount` or `mount_all` to mount widgets inside of the window.
+        Use this (or `mount_all_in_window`) instead.
+
+        Args:
+            *widgets: The widget(s) to mount.
+            before: Optional location to mount before. An `int` is the index
+                of the child to mount before, a `str` is a `query_one` query to
+                find the widget to mount before.
+            after: Optional location to mount after. An `int` is the index
+                of the child to mount after, a `str` is a `query_one` query to
+                find the widget to mount after.
+
+        Returns:
+            An awaitable object that waits for widgets to be mounted.
+
+        Raises:
+            MountError: If there is a problem with the mount request.
+
+        Note:
+            Only one of ``before`` or ``after`` can be provided. If both are
+            provided a ``MountError`` will be raised.
+        """
+
+        return self._content_pane.mount(
+            *widgets,
+            before=before,
+            after=after,
+        )
+
+    def mount_all_in_window(
+        self,
+        widgets: Iterable[Widget],
+        *,
+        before: int | str | Widget | None = None,
+        after: int | str | Widget | None = None,
+    ) -> AwaitMount:
+        """Mount widgets from an iterable into the Window. \n
+        Do not use `mount` or `mount_all` to mount widgets inside of the window.
+        Use this (or `mount_in_window`) instead.
+
+        Args:
+            widgets: An iterable of widgets.
+            before: Optional location to mount before. An `int` is the index
+                of the child to mount before, a `str` is a `query_one` query to
+                find the widget to mount before.
+            after: Optional location to mount after. An `int` is the index
+                of the child to mount after, a `str` is a `query_one` query to
+                find the widget to mount after.
+
+        Returns:
+            An awaitable object that waits for widgets to be mounted.
+
+        Raises:
+            MountError: If there is a problem with the mount request.
+
+        Note:
+            Only one of ``before`` or ``after`` can be provided. If both are
+            provided a ``MountError`` will be raised.
+        """
+        return self._content_pane.mount_all(
+            widgets,
+            before=before,
+            after=after,
+        )
+
+    def remove_children_in_window(
+        self,
+        selector: str | type[QueryType] | Iterable[Widget] = "*",
+    ) -> AwaitRemove:
+        """Remove the widgets inside of this window from the DOM.
+
+        Args:
+            selector: A CSS selector or iterable of widgets to remove.
+
+        Returns:
+            An awaitable object that waits for the widgets to be removed.
+        """
+
+        return self._content_pane.remove_children(selector)

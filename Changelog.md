@@ -1,5 +1,14 @@
 # Textual-Window Changelog
 
+## 0.2.2
+
+- Added 3 new methods:
+  - `mount_in_window`
+  - `mount_all_in_window`
+  - `remove_children_in_window`
+  
+These 3 methods make it possible to change the widgets inside of a window after it has been created. They are bridge methods that connect to `mount`, `mount_all`, and `remove_children` in the content pane.
+
 ## 0.2.1
 
 - Small fixes to documentation.
