@@ -1,3 +1,12 @@
+"""Module for the WindowSwitcher class.
+
+You don't need to import from this module. You can simply do:
+`from textual_window import WindowSwitcher`"""
+
+# ~ Type Checking (Pyright and MyPy) - Strict Mode
+# ~ Linting - Ruff
+# ~ Formatting - Black - max 110 characters / line
+
 from __future__ import annotations
 
 # from typing import Any  # , Callable, Optional
@@ -7,6 +16,7 @@ from textual import events
 
 # from textual.message import Message
 from textual.app import ComposeResult
+from textual.visual import VisualType
 from textual.containers import Horizontal, Container
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -33,6 +43,9 @@ class WindowSwitcher(Widget):
 
 class WindowSwitcherButton(ButtonStatic):
     can_focus = True
+
+    def __init__(self, name: str, content: VisualType = "") -> None:
+        super().__init__(name=name, content=content)
 
 
 class WindowSwitcherScreen(ModalScreen[None]):
@@ -73,8 +86,11 @@ class WindowSwitcherScreen(ModalScreen[None]):
 
         with Container(id="menu_container"):
             with Horizontal(id="menu_inner"):
-                for window in self.windows.keys():
-                    yield WindowSwitcherButton(window, name=window)
+                if window_manager.recent_focus_order:
+                    for window in window_manager.recent_focus_order:
+                        yield WindowSwitcherButton(name=window.name, content=window.name)
+                else:
+                    raise RuntimeError("Windows not loaded into recent_focus_order.")
 
     def on_mount(self) -> None:
 

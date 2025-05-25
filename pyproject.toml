@@ -1,6 +1,6 @@
 [project]
 name = "textual-window"
-version = "0.1.2"
+version = "0.2.0"
 description = "A Textual widget for a floating, draggable window and included window bar/manager system."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,6 +35,9 @@ Changelog = "https://github.com/edward-jazzhands/textual-window/blob/master/Chan
 
 [dependency-groups]
 dev = [
+    "black>=25.1.0",
+    "mypy>=1.15.0",
+    "ruff>=0.11.11",
     "textual-dev>=1.7.0",
 ]
 
@@ -47,3 +50,8 @@ textual-window = "textual_window.demo:run_demo"
 
 [tool.black]
 line-length = 110
+
+[tool.mypy]
+python_version = "3.10"
+pretty = true
+strict = true

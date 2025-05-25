@@ -1,18 +1,21 @@
-"""Module for the Window class as well as the Window Manager.
-The Window manager is a singleton. Import `window_manager` to use it."""
+"""Module for the Window widget.
 
-# ~ Type Checking (Pyright) - Strict Mode
+You don't need to import from this module. You can simply do:
+`from textual_window import Window"""
+
+# ~ Type Checking (Pyright and MyPy) - Strict Mode
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
 from __future__ import annotations
 from typing import Literal, Any, TYPE_CHECKING, Callable, Optional
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from textual.visual import VisualType
 
 import textual.events as events
-from textual._compose import compose  # type: ignore (not exported from module. Can't fix this.)
+from textual._compose import compose  # type: ignore[unused-ignore]
 from textual.widget import Widget
 from textual.message import Message
 from textual.binding import Binding
@@ -216,13 +219,13 @@ class MaximizeButton(NoSelectStatic):
 
 class Resizer(NoSelectStatic):
 
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
+    def __init__(self, content: VisualType, window: Window, **kwargs: Any) -> None:
         super().__init__(content=content, **kwargs)
         self.window = window
 
         self.call_after_refresh(self.set_max_min)
 
-    def set_max_min(self):
+    def set_max_min(self) -> None:
 
         assert isinstance(self.window.parent, Widget)
         self.min_width = self.window.min_width
@@ -310,21 +313,19 @@ class TopBar(Horizontal):
     def __init__(  # passing in window might seem redundant because of self.parent,
         self,  # but it gives better type hinting and allows for more advanced
         window: Window,  # dependeny injection of the window down to children widgets.
-        window_title: str | None,
+        window_title: str,
         options: dict[str, Callable[..., Optional[Any]]],
     ):
         super().__init__()
         self.window = window
-        self.window_title = window_title if window_title else ""
+        self.window_title = window_title
         self.options = options
-        self.hamburger_button = None  #! why is this here again?
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
 
         yield TitleBar(self.window_title, window=self.window)
         if self.options:
-            self.hamburger_button = HamburgerButton(" ☰ ", window=self.window, options=self.options)
-            yield self.hamburger_button
+            yield HamburgerButton(" ☰ ", window=self.window, options=self.options)
         if self.window.show_maximize_button:
             self.maximize_button = MaximizeButton(" ☐ ", window=self.window)
             yield self.maximize_button
@@ -339,7 +340,7 @@ class BottomBar(Horizontal):
         super().__init__()
         self.window = window
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         yield NoSelectStatic(id="bottom_bar_text")
         if self.window.allow_resize:
             yield Resizer("◢", window=self.window)
@@ -470,6 +471,7 @@ class Window(Widget):
     def __init__(
         self,
         *children: Widget,
+        name: str,
         starting_horizontal: STARTING_HORIZONTAL = "center",
         starting_vertical: STARTING_VERTICAL = "middle",
         start_open: bool = False,
@@ -478,7 +480,7 @@ class Window(Widget):
         show_maximize_button: bool = False,
         menu_options: dict[str, Callable[..., Optional[Any]]] = {},
         animated: bool = True,
-        name: str | None = None,
+        show_title: bool = True,
         id: str | None = None,
         classes: str | None = None,
         disabled: bool = False,
@@ -486,42 +488,45 @@ class Window(Widget):
         """Initialize a window widget.
         Args:
             *children: Child widgets.
+            name: The name of the widget - Used for the window's title bar, the WindowBar, and the
+                WindowSwitcher. `name` is REQUIRED, unlike normal Textual widgets. You can set
+                `show_title` to False to hide the Window's name in the title bar.
             starting_horizontal (str): The starting horizontal position of the window.
             starting_vertical (str): The starting vertical position of the window.
             start_open (bool): Whether the window should start open or closed.
             start_snapped (bool): Whether the window should start snapped (locked) within the parent area.
             allow_resize (bool): Whether the window should be resizable.
-            animated (bool): Whether the window should be animated.
-                This will add a fade in/out effect when opening/closing the window. You can modify
-                the `animation_duration` attribute to change the duration of the animation.
             show_maximize_button (bool): Whether to show the maximize button on the top bar.
             menu_options (dict): A dictionary of options to show in a hamburger menu.
                 The hamburger menu will be shown automatically if you pass in any options.
                 The key is the name of the option as it will be displayed in the menu.
                 The value is a callable that will be called when the option is selected.
                 #! add note about functools partial?
-            name: The name of the widget - Used for the window's title bar and the WindowBar class
+            animated (bool): Whether the window should be animated.
+                This will add a fade in/out effect when opening/closing the window. You can modify
+                the `animation_duration` attribute to change the duration of the animation.
+            show_title (bool): Whether to show the title bar or not.
             id: The ID of the widget in the DOM.
             classes: The CSS classes for the widget.
             disabled: Whether the widget is disabled or not.
-            markup: Enable content markup?"""
+        """
 
         super().__init__(
             *children,
-            name=name,
             id=id,
             classes=classes,
             disabled=disabled,
         )
+        self._name = name  #  This is an override from DOMnode. Because _name cannot be None here.
         self.initialized = False
         if start_open is False and animated is True:
             self.styles.opacity = 0.0
         self.display = start_open
-        self.start_open = start_open  # This is saved for resetting the window.
-        self.starting_snap_state = start_snapped  # Snap and Lock mean the same thing in this context.
-        self.set_reactive(Window.open_state, start_open)  # Don't want to trigger the open/close animation.
-        self.set_reactive(Window.snap_state, start_snapped)  # Likewise, this is handled manually.
-        self.set_reactive(Window.maximize_state, False)  # This is handled manually as well.
+        self.start_open = start_open  #     This is saved for resetting the window.
+        self.starting_snap_state = start_snapped  #     Snap and Lock mean the same thing in this context.
+        self.set_reactive(Window.open_state, start_open)  #     Don't want to trigger the animations.
+        self.set_reactive(Window.snap_state, start_snapped)  #  These 3 reactives are handled manually.
+        self.set_reactive(Window.maximize_state, False)
 
         self.starting_horizontal = starting_horizontal
         self.starting_vertical = starting_vertical
@@ -529,21 +534,20 @@ class Window(Widget):
         self.animated = animated
         self.show_maximize_button = show_maximize_button
         self.menu_options = menu_options
+        self.show_title = show_title
 
         # SECONDARY ATTRIBUTES (non-constructor)
         self.auto_bring_forward = True  #       If windows should be brought forward when opened.
         self.auto_focus = True  #               If windows should be focused when opened.
         self.animation_duration: float = 0.3  # The duration of the fade effect, if enabled
 
-        # self.disable_modifying_snap_state = False    #! [N/I] Whether it should be possible to modify the lock state.
+        # self.disable_modifying_snap_state = False    #! [N/I]
 
         # EXTRAS
-        self.saved_size: Size | None = (
-            None  # This is used to save the size of the window when it is maximized.
-        )
-        self.saved_offset: Offset | None = (
-            None  # This is used to save the offset of the window when it is maximized.
-        )
+        self.saved_size: Size | None = None  # Save the size of the window when it is maximized.
+        self.saved_offset: Offset | None = None  # Save the offset of the window when it is maximized.
+        self.max_width: int | None = None  # The maximum width of the window.
+        self.max_height: int | None = None  # The maximum height of the window.
 
         # -------------------------------------------------------------------------#
 
@@ -556,7 +560,9 @@ class Window(Widget):
         # When someone uses the window, any children they pass in will be mounted
         # into the content pane. The top and bottom bars are fixed.
 
-        self._top_bar = TopBar(window=self, window_title=self.name, options=self.menu_options)
+        window_title = name if show_title else ""
+
+        self._top_bar = TopBar(window=self, window_title=window_title, options=self.menu_options)
         self._content_pane = VerticalScroll(id="content_pane", can_focus=False)
         self._bottom_bar = BottomBar(window=self)
 
@@ -577,8 +583,9 @@ class Window(Widget):
             # '_' denotes textual built-in layers. We want to skip those. Textual handles them
             # behind the scenes, and we don't want to mess with them.
             layers.extend([f"window{self.layer_index}"])  # add our new layer onto the non-built ins
-            self.screen.styles.layers = tuple(layers)  # type: ignore #!(Tuple size mismatch; expected 1 but received indeterminate)
+            self.screen.styles.layers = tuple(layers)  # type: ignore
         self.styles.layer = f"window{self.layer_index}"
+        #! type ignore from: (Tuple size mismatch; expected 1 but received indeterminate)
 
         await self.mount_all(self._window_base_widgets)  # Mount the top bar, content pane, and bottom bar.
 
@@ -590,7 +597,7 @@ class Window(Widget):
         except TypeError as error:
             raise TypeError(f"{self!r} compose() method returned an invalid result; {error}") from error
         except Exception as error:
-            self.app._handle_exception(error)  # type: ignore (Private method usage. Can't fix this.)
+            self.app._handle_exception(error)  # type: ignore[unused-ignore]
         else:
             self._extend_compose(widgets)
             # ~ The below line was modified (mounting into the content pane)
@@ -703,7 +710,7 @@ class Window(Widget):
             self.max_height = self.parent.size.height
         return Size(self.max_width, self.max_height)
 
-    def _close_animation(self):
+    def _close_animation(self) -> None:
 
         def _close_animation_callback() -> None:
             self.display = False
@@ -718,7 +725,7 @@ class Window(Widget):
         else:
             self.display = False
 
-    def _open_animation(self):
+    def _open_animation(self) -> None:
 
         self.display = True
         if self.animated:
@@ -726,6 +733,15 @@ class Window(Widget):
 
     def on_mouse_down(self) -> None:
         self.bring_forward()
+
+    def focus(self, scroll_visible: bool = True) -> Self:
+        self.manager.append_focus_order(self)
+        return super().focus(scroll_visible=scroll_visible)
+
+    @property
+    def name(self) -> str:
+        """The name of the node."""
+        return self._name  # type: ignore
 
     ####################
     # ~ WATCH METHODS ~#
@@ -798,7 +814,7 @@ class Window(Widget):
     # ~ Public API ~ #
     ##################
 
-    def bring_forward(self):
+    def bring_forward(self) -> None:
         """This is called automatically when the window is opened, as long as
         `auto_bring_forward` is set to True on the window. If you want manual control,
         you can set that to False and call this method yourself."""
@@ -809,23 +825,23 @@ class Window(Widget):
         self.screen.styles.layers = layers + tuple([self.styles.layer])  # type: ignore
         #! Tuple size mismatch; expected 1 but received indeterminate
 
-    def maximize(self):
+    def maximize(self) -> None:
         """Resize the window to its maximum."""
         self.maximize_state = True
 
-    def restore(self):
+    def restore(self) -> None:
         """(Opposite of maximize) Restore the window to its original size."""
         self.maximize_state = False
 
-    def toggle_maximize(self):
+    def toggle_maximize(self) -> None:
         """Toggle the window between its maximum size and its original size."""
         self.maximize_state = not self.maximize_state
 
-    def close_window(self):
+    def close_window(self) -> None:
         """Runs the close animatiom and blurs all children."""
         self.open_state = False
 
-    def open_window(self):
+    def open_window(self) -> None:
         """Runs the open animation, and optionally brings the window forward."""
         self.open_state = True
 
@@ -833,11 +849,11 @@ class Window(Widget):
         """Toggle the window open and closed."""
         self.open_state = not self.open_state
 
-    def enable_snap(self):
+    def enable_snap(self) -> None:
         """Enable window locking (set snap_state to True)"""
         self.snap_state = True
 
-    def disable_snap(self):
+    def disable_snap(self) -> None:
         """Disable window locking (set snap_state to False)"""
         self.snap_state = False
 
@@ -873,7 +889,7 @@ class Window(Widget):
         self.calculate_starting_position()
         self.offset = self.starting_offset
 
-    def clamp_into_parent_area(self):
+    def clamp_into_parent_area(self) -> None:
         """This function returns the widget into its parent area."""
 
         if self.initialized:

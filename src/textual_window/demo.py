@@ -1,6 +1,6 @@
 """Module for the textual-window demo app."""
 
-# ~ Type Checking (Pyright) - Strict Mode
+# ~ Type Checking (Pyright and MyPy) - Strict Mode
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
@@ -45,7 +45,7 @@ see a global context menu."""
 
 class MyWindow(Window):
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
 
         yield Switch(id="switch1")
 
@@ -221,7 +221,7 @@ class WindowDemo(App[None]):
         self.rich_log.write(f"Checkbox changed to {event.value}")
 
 
-def run_demo():
+def run_demo() -> None:
     WindowDemo().run()
 
 

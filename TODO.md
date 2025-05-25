@@ -9,9 +9,6 @@
 - [ ] Turn allow_resize into a reactive variable.
 - [ ] Add a way to change the mouse controls, something other than right-clicking
 - [ ] Add a Modal window option (Modal screen + window combo)
-- [ ] Figure out best way to implement highlight window on mouse hover
-
-## Features to add (0.2.0)
 
 ## Finished (0.2.0)
 
@@ -19,12 +16,13 @@
 - [X] Restoring (unmaximizing) a window should restore to its previous state
 - [X] Make the resize button slightly larger
 - [X] Replace lock button with a generic hamburger menu ☰
-- [x] Build a custom command system for the hamburger menu
+- [X] Build a custom command system for the hamburger menu
 - [X] Add help info about right clicking behavior into the demo
 - [X] Add snap/lock state indicator for windows on the WindowBar.
 - [X] Build window focus cycler screen
 - [X] Build way to focus windows / tell which is focused
 - [X] Pass through focus controls to inner content_pane (content_pane focusing now disabled)
+- [X] WindowSwitcher shows windows in order of last focus
 
 ## Finished (0.1.0)
 

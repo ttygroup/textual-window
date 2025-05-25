@@ -1,15 +1,19 @@
+"""Module for the button base classes used in the textual-window package."""
+
 from __future__ import annotations
-from typing import Any
+
+from textual.visual import VisualType
 from textual import events
 from textual.widgets import Static
 from textual.message import Message
+
 
 class NoSelectStatic(Static):
 
     @property
     def allow_select(self) -> bool:
         return False
-    
+
 
 class ButtonStatic(NoSelectStatic):
 
@@ -21,9 +25,29 @@ class ButtonStatic(NoSelectStatic):
         @property
         def control(self) -> ButtonStatic:
             return self.button
-        
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
+
+    def __init__(
+        self,
+        content: VisualType = "",
+        *,
+        expand: bool = False,
+        shrink: bool = False,
+        markup: bool = True,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+    ) -> None:
+        super().__init__(
+            content=content,
+            expand=expand,
+            shrink=shrink,
+            markup=markup,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+        )
         self.click_started_on: bool = False
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
@@ -42,4 +66,3 @@ class ButtonStatic(NoSelectStatic):
 
         self.remove_class("pressed")
         self.click_started_on = False
-

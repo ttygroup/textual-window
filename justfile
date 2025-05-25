@@ -14,6 +14,22 @@ run-dev:
 console:
 	uv run textual console -x EVENT -x SYSTEM
 
+# Runs ruff, exits with 0 if no issues are found
+lint:
+	uv run ruff check src || (echo "Ruff found issues. Please address them." && exit 1)
+
+# Runs mypy, exits with 0 if no issues are found
+typecheck:
+	uv run mypy src || (echo "Mypy found issues. Please address them." && exit 1)
+
+# Runs black
+format:
+	uv run black src
+
+# Runs ruff, mypy, and black
+all-checks: lint typecheck format
+	echo "All pre-commit checks passed. You're good to publish."	
+
 # Build the package, run clean first
 build: clean
 	@echo "Building the package..."

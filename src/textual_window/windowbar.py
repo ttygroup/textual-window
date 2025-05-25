@@ -4,7 +4,7 @@ You don't need to import from this module. You can simply do:
 `from textual_window import WindowBar`
 """
 
-# ~ Type Checking (Pyright) - Strict Mode
+# ~ Type Checking (Pyright and MyPy) - Strict Mode
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
@@ -258,7 +258,7 @@ class WindowBar(Horizontal):
         id: str | None = None,
         classes: str | None = None,
         disabled: bool = False,
-    ):
+    ) -> None:
         """Initialize a WindowBar.
 
         Args:
@@ -345,7 +345,7 @@ class WindowBar(Horizontal):
     # ~ Public API ~#
     ################
 
-    async def build_window_buttons(self):
+    async def build_window_buttons(self) -> None:
         """This is called by the WindowManager when it detects the DOM is ready. It will
         get all the windows that are registered with the WindowManager and create buttons
         for them. If for some reason you mount or unmount windows in your app during runtime,
@@ -393,5 +393,5 @@ class WindowBar(Horizontal):
         else:
             self.dock = "top"
 
-    def toggle_bar(self):
+    def toggle_bar(self) -> None:
         self.display = not self.display

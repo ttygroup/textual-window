@@ -1,7 +1,10 @@
-"""Module for the Window class as well as the Window Manager.
-The Window manager is a singleton. Import `window_manager` to use it."""
+"""Module for the Window Manager.
 
-# ~ Type Checking (Pyright) - Strict Mode
+You don't need to import from this module. You can simply do:
+`from textual_window import window_manager`.
+It is a singleton. Do not use the WindowManager class directly."""
+
+# ~ Type Checking (Pyright and MyPy) - Strict Mode
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
@@ -12,10 +15,11 @@ if TYPE_CHECKING:
     from textual_window.window import Window
     from textual_window.windowbar import WindowBar
 import asyncio
+from collections import deque
 
 # from textual.css.query import NoMatches
 from textual import work
-from textual._context import NoActiveAppError  # type: ignore (not exported from module. Can't fix this.)
+from textual._context import NoActiveAppError  # type: ignore[unused-ignore]
 from textual.dom import DOMNode
 
 # from textual.binding import Binding
@@ -43,6 +47,7 @@ class WindowManager(DOMNode):
         self.ready = False
         self.watching_started = False
         self.windowbar: WindowBar | None = None
+        self.recent_focus_order: deque[Window] | None = None
 
     def add_window(self, window: Window) -> None:
         """Used by windows to register with the manager.
@@ -86,7 +91,7 @@ class WindowManager(DOMNode):
 
         This will query the app for all windows in the app."""
 
-        self.windows: dict[str, Window] = {}
+        self.windows.clear()
         windows = self.app.query(Window)
         for window in windows:
             if window.name:
@@ -115,7 +120,17 @@ class WindowManager(DOMNode):
                 "You cannot have more than one WindowBar in the app."
             )
 
-    async def windowbar_build_buttons(self):
+    def append_focus_order(self, window: Window) -> None:
+        """Append a window to the focus order. This is used by the WindowSwitcher to
+        display the windows in the order they were focused."""
+
+        if self.recent_focus_order:
+            self.recent_focus_order.remove(window)
+            self.recent_focus_order.appendleft(window)
+        else:
+            raise RuntimeError("No recent focus order found. Please make sure the DOM is ready.")
+
+    async def windowbar_build_buttons(self) -> None:
 
         if self.windowbar:
             await self.windowbar.build_window_buttons()
@@ -131,12 +146,12 @@ class WindowManager(DOMNode):
             window.open_state = False
 
     def snap_all_windows(self) -> None:
-        """Lock all windows."""
+        """Snap/Lock all windows."""
         for window in self.windows.values():
             window.snap_state = True
 
     def unsnap_all_windows(self) -> None:
-        """Unsnap all windows."""
+        """Unsnap/Unlock all windows."""
         for window in self.windows.values():
             window.snap_state = False
 
@@ -165,17 +180,17 @@ class WindowManager(DOMNode):
         self.log.debug(self.windows)
         self.log.debug(f"Layers: \n{self.app.screen.styles.layers}")
 
-    def watch_for_dom_ready_runner(self):
+    def watch_for_dom_ready_runner(self) -> None:
 
         if not self.watching_started:
             self.watching_started = True
             self.watch_for_dom_ready()
 
     @work(group="window_manager")
-    async def watch_for_dom_ready(self):
+    async def watch_for_dom_ready(self) -> None:
 
         try:
-            self.ready = self.app._dom_ready  # type: ignore (Private method usage)
+            self.ready = self.app._dom_ready  # type: ignore[unused-ignore]
         except NoActiveAppError:
             raise NoActiveAppError("No active app. Window manager has launched too early. Library bug.")
         except Exception as e:
@@ -184,11 +199,13 @@ class WindowManager(DOMNode):
         else:
             while not self.ready:
                 await asyncio.sleep(0.2)
-                self.ready = self.app._dom_ready  # type: ignore (Private method usage)
+                self.ready = self.app._dom_ready  # type: ignore[unused-ignore]
                 if not self.ready:
                     self.log("DOM not ready yet. Retrying...")
 
             self.log.debug("DOM is ready.")
+            self.recent_focus_order = deque(maxlen=len(self.windows))
+            self.recent_focus_order.extend(self.windows.values())
             self.reset_all_window_positions()  # Triggers the position calculation functions.
             self.calculate_all_max_sizes()
             await self.windowbar_build_buttons()
