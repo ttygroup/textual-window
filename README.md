@@ -10,7 +10,7 @@ Textual-Window is an extension library for [Textual](https://github.com/Textuali
 It provides a Window widget, along with an included WindowBar and WindowSwitcher, that makes it extremely
 easy to create a desktop GUI-like experience inside of a TUI built with Textual.
 
-Window widgets are floating, draggable, resizable, closable, and many more.
+Window widgets are floating, draggable, resizable, snappable, closable, and you can even cycle through them in a manner similar to alt-tab. It's like a mini desktop inside of your terminal. (Is it ridiculous? Yes, yes it is. But is it awesome? Also yes.)
 
 ## Features
 

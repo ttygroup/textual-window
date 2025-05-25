@@ -22,8 +22,10 @@ from textual import work
 from textual._context import NoActiveAppError  # type: ignore[unused-ignore]
 from textual.dom import DOMNode
 
-# from textual.binding import Binding
-# from rich.text import Text
+# Note: all type ignores with 'unused-ignore' are because Pyright and MyPy
+# disagree with each other about whether the line is actually an error.
+# Pyright says it is because of the private attribute access. But MyPy
+# does not seem to care about this (even in strict mode).
 
 
 class WindowManager(DOMNode):
@@ -173,7 +175,7 @@ class WindowManager(DOMNode):
     def calculate_all_max_sizes(self) -> None:
         """Calculate the maximum size of all windows."""
         for window in self.windows.values():
-            window.calculate_max_size()
+            window._calculate_max_size()  # type: ignore[unused-ignore]
 
     def debug(self) -> None:
         """Log self.windows and self.app on the WindowManager to console."""

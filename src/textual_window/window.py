@@ -486,6 +486,7 @@ class Window(Widget):
         disabled: bool = False,
     ):
         """Initialize a window widget.
+
         Args:
             *children: Child widgets.
             name: The name of the widget - Used for the window's title bar, the WindowBar, and the
@@ -651,10 +652,7 @@ class Window(Widget):
         self.manager.remove_window(self)  # Remove this window from the window manager.
         super()._on_unmount()
 
-    def calculate_starting_position(self) -> Offset:
-        """Calculate the starting position of the window based on the parent size.
-        This will set self attributes on the window. It also returns an Offset object
-        for convenience."""
+    def _calculate_starting_position(self) -> Offset:
 
         assert self.starting_width and self.starting_width.cells
         assert self.starting_height and self.starting_height.cells
@@ -691,10 +689,9 @@ class Window(Widget):
             self.post_message(self.Initialized(self))
         return self.starting_offset
 
-    def calculate_max_size(self) -> Size:
-        """Calculate the maximum size of the window based on the parent size.
-        This will set self attributes on the window. It also returns a Size object
-        for convenience."""
+    def _calculate_max_size(self) -> Size:
+        # This is used by the window manager, it's only called when it detects
+        # the DOM is ready.
 
         assert isinstance(self.parent, Widget)
         assert self.parent.size.width is not None
@@ -830,11 +827,11 @@ class Window(Widget):
         self.maximize_state = True
 
     def restore(self) -> None:
-        """(Opposite of maximize) Restore the window to its original size."""
+        """(Opposite of maximize) Restore the window to its previous size and position."""
         self.maximize_state = False
 
     def toggle_maximize(self) -> None:
-        """Toggle the window between its maximum size and its original size."""
+        """Toggle the window between its maximum size and its previous size."""
         self.maximize_state = not self.maximize_state
 
     def close_window(self) -> None:
@@ -886,11 +883,12 @@ class Window(Widget):
     def reset_position(self) -> None:
         """Reset the window position to its starting position."""
 
-        self.calculate_starting_position()
+        self._calculate_starting_position()
         self.offset = self.starting_offset
 
     def clamp_into_parent_area(self) -> None:
-        """This function returns the widget into its parent area."""
+        """This function returns the widget into its parent area.
+        There shouldn't be any need to call this manually, but it is here if you need it."""
 
         if self.initialized:
             assert isinstance(self.parent, Widget)
