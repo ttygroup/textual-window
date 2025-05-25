@@ -16,17 +16,16 @@ Window widgets are floating, draggable, resizable, snappable, closable, and you 
 
 ## Features
 
-- Close and open windows with the close button or the desktop standard, ctrl-w
-- Resize, maximize, and restore windows. Set the window's min and max size through Textual CSS as you normally would, and the window will respect those
-settings when resizing. Resizing can also be disabled per window.
+- Drag, resize, and maximize windows. Close windows with ctrl+w.
+- Windows can focus, and highlight to show which one is focused. Controls are passed from the highlighted window to its inner scrolling container.
 - Included fully-automatic Window Bar (aka Task Bar). Don't worry about keeping track of the windows. Just compose and go. The library will track them for you.
-- Included Window Switcher, to cycle window focus like you'd expect. The most recently focused window is always at the start (left side).
-- WindowBar can toggle the dock between top and bottom of the screen in real-time.
+- Included Window Switcher, to cycle window focus in a manner similar to alt-tab. The most recently focused window is always at the start (left side).
+- Set the window's min and max size through Textual CSS as you normally would, and the window will respect those settings when resizing. Resizing can also be disabled per window.
 - Windows snap to the terminal by default, toggle this on/off in real-time.
+- WindowBar can toggle the dock between top and bottom of the screen in real-time.
 - Window Bar has right-click context menus, one for each window, as well as a global context menu with options such as close/open all or snap/unsnap all.
-- Windows highlight to show which one is focused. Controls are passed from the highlighted window to its inner scrolling container.
 - Set the window's starting location on the screen using plain descriptions (ie. right + bottom), as well as whether to initialize open or closed.
-- An optional hamburger menu for custom callbacks - The window has a 'menu_options' argument. Pass in a dictionary of functions (label + callback) and these functions will appear in that window's hamburger menu. (If nothing is passed in, the window is not shown).
+- An optional hamburger menu for custom callbacks - The window has a 'menu_options' argument. Pass in a dictionary of functions (label + callback) and these functions will appear in that window's hamburger menu. (If nothing is passed in, the menu is not shown).
 - Smooth fade in/out animation adds a convincing touch.
 - Create windows in all 3 ways textual supports - context manager, passing in a list of children, and custom Window objects.
 - ...and many small QoL things too numerous to list here.

@@ -11,7 +11,6 @@ Huge update with many improvements:
 
 - Breaking change: Made the name argument for the window be mandatory.
 - Built a window focus cycler screen. This will dynamically show which window had most recent focus using a Queue and works very similar to alt-tab in a normal desktop.
-- Built a custom command system for the hamburger menu.
 - Built a way to focus windows / tell which is focused.
 - Disabled focusing for inner content pane (The vertical scroll). Now it passes through all the scrolling controls from the window to the vertical scroll while the window is focused. Overrode several `action_scroll` methods to do this.
 - Replaced the lock button with a generic hamburger menu ☰, which now shows a list of callbacks which can be passed into the window as an argument.
