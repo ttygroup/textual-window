@@ -1,3 +1,5 @@
+![textual-window-banner](https://github.com/user-attachments/assets/d8c78455-53e9-4d12-90ab-e9d3d2ade8fa)
+
 # Textual-Window
 
 ![badge](https://img.shields.io/badge/linted-Ruff-blue?style=for-the-badge&logo=ruff)
@@ -53,4 +55,5 @@ Feel free to post an issue.
 
 ## Video
 
-Coming soon
+https://github.com/user-attachments/assets/3d0e21a6-bb95-4adf-afc9-6bb3792215a5
+
