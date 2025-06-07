@@ -1,6 +1,6 @@
 [project]
 name = "textual-window"
-version = "0.2.2"
+version = "0.3.0"
 description = "A Textual widget for a floating, draggable window and included window bar/manager system."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,8 +13,9 @@ license = { text = "MIT" }
 keywords = ["python", "textual", "tui", "window", "widget"]
 
 dependencies = [
-    "textual>=3.1.1",
+    "textual>=3.2.0",
 ]
+
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -55,3 +56,5 @@ line-length = 110
 python_version = "3.10"
 pretty = true
 strict = true
+
+

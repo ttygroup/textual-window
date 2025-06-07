@@ -10,7 +10,8 @@ You don't need to import from this module. You can simply do:
 from __future__ import annotations
 from typing import Literal, Any, TYPE_CHECKING, Callable, Optional, Iterable
 from textual.await_remove import AwaitRemove
-from typing_extensions import Self
+
+# from typing_extensions import Self
 
 if TYPE_CHECKING:
     from textual.visual import VisualType
@@ -19,12 +20,15 @@ if TYPE_CHECKING:
 
 import textual.events as events
 from textual._compose import compose  # type: ignore[unused-ignore]
+from textual.dom import check_identifiers
 from textual.widget import Widget, AwaitMount
 from textual.message import Message
 from textual.binding import Binding
 
 from textual import on, work
 from textual.geometry import clamp, Size
+
+# from textual.css.query import NoMatches
 
 # from textual.widgets import Static
 from textual.containers import Horizontal, VerticalScroll, Container
@@ -37,11 +41,26 @@ from textual.reactive import reactive
 from textual_window.manager import window_manager
 from textual_window.button_bases import ButtonStatic, NoSelectStatic
 
-__all__ = ["Window"]
+__all__ = [
+    "Window",
+    "STARTING_VERTICAL",
+    "STARTING_HORIZONTAL",
+    "MODE",
+]
 
 # These are combined to calculate the starting position.
 STARTING_VERTICAL = Literal["top", "uppermiddle", "middle", "lowermiddle", "bottom"]
 STARTING_HORIZONTAL = Literal["left", "centerleft", "center", "centerright", "right"]
+MODE = Literal["permanent", "temporary"]
+
+BUTTON_SYMBOLS: dict[str, str] = {
+    "close": "X",
+    "maximize": "☐",
+    "restore": "❐",
+    "minimize": "—",
+    "hamburger": "☰",
+    "resizer": "◢",
+}
 
 
 class HamburgerMenu(ModalScreen[None]):
@@ -210,13 +229,41 @@ class MaximizeButton(NoSelectStatic):
 
     def swap_in_restore_icon(self) -> None:
 
-        self.update(" - ")
+        self.update(BUTTON_SYMBOLS["restore"])
         self.tooltip = "Restore"
 
     def swap_in_maximize_icon(self) -> None:
 
-        self.update(" ☐ ")
+        self.update(BUTTON_SYMBOLS["maximize"])
         self.tooltip = "Maximize"
+
+
+class MinimizeButton(NoSelectStatic):
+
+    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
+        super().__init__(content=content, **kwargs)
+        self.window = window
+        self.click_started_on: bool = False
+        self.tooltip = "Minimize"
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+
+        if event.button == 1:  # left button
+            self.click_started_on = True
+            self.add_class("pressed")
+            self.window.bring_forward()
+
+    def on_mouse_up(self) -> None:
+
+        self.remove_class("pressed")
+        if self.click_started_on:
+            self.window.minimize()
+            self.click_started_on = False
+
+    def on_leave(self) -> None:
+
+        self.remove_class("pressed")
+        self.click_started_on = False
 
 
 class Resizer(NoSelectStatic):
@@ -225,15 +272,19 @@ class Resizer(NoSelectStatic):
         super().__init__(content=content, **kwargs)
         self.window = window
 
-        self.call_after_refresh(self.set_max_min)
-
     def set_max_min(self) -> None:
 
         assert isinstance(self.window.parent, Widget)
-        self.min_width = self.window.min_width
-        self.min_height = self.window.min_height
-        self.max_width = self.window.max_width if self.window.max_width else self.window.parent.size.width
-        self.max_height = self.window.max_height if self.window.max_height else self.window.parent.size.height
+        try:
+            self.min_width = self.window.min_width
+            self.min_height = self.window.min_height
+            self.max_width = self.window.max_width if self.window.max_width else self.window.parent.size.width
+            self.max_height = (
+                self.window.max_height if self.window.max_height else self.window.parent.size.height
+            )
+        except AttributeError as e:
+            self.log.error(f"{self.window.id} does not have min/max width/height set. ")
+            raise e
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
 
@@ -320,20 +371,24 @@ class TopBar(Horizontal):
     ):
         super().__init__()
         self.window = window
-        self.window_title = window_title
+        self.window_title = (window.icon + " " + window_title) if window.icon else window_title
         self.options = options
 
     def compose(self) -> ComposeResult:
 
         yield TitleBar(self.window_title, window=self.window)
         if self.options:
-            yield HamburgerButton(" ☰ ", window=self.window, options=self.options)
+            yield HamburgerButton(
+                BUTTON_SYMBOLS["hamburger"], window=self.window, options=self.options, classes="windowbutton"
+            )
+        yield MinimizeButton(BUTTON_SYMBOLS["minimize"], window=self.window, classes="windowbutton")
         if self.window.show_maximize_button:
-            self.maximize_button = MaximizeButton(" ☐ ", window=self.window)
+            self.maximize_button = MaximizeButton(
+                BUTTON_SYMBOLS["maximize"], window=self.window, classes="windowbutton"
+            )
             yield self.maximize_button
-        yield CloseButton(" X ", window=self.window)
-
-        self.app.screen.maximize
+        if self.window.window_mode == "temporary":
+            yield CloseButton(BUTTON_SYMBOLS["close"], window=self.window, classes="windowbutton close")
 
 
 class BottomBar(Horizontal):
@@ -345,14 +400,26 @@ class BottomBar(Horizontal):
     def compose(self) -> ComposeResult:
         yield NoSelectStatic(id="bottom_bar_text")
         if self.window.allow_resize:
-            yield Resizer("◢", window=self.window)
+            yield Resizer(BUTTON_SYMBOLS["resizer"], window=self.window, classes="windowbutton")
+
+
+class WindowMessage(Message):
+    """Generic base class for window messages."""
+
+    def __init__(self, window: Window) -> None:
+        super().__init__()
+        self.window = window
+
+    @property
+    def control(self) -> Window:
+        return self.window
 
 
 class Window(Widget):
 
     DEFAULT_CSS = """
     Window {
-        width: 20; height: 10;
+        width: 25; height: 12;
         min-width: 12; min-height: 6;
         &:focus { 
             & > TopBar, BottomBar { background: $secondary; }
@@ -363,7 +430,7 @@ class Window(Widget):
         }
     }
     TopBar, BottomBar {
-        height: 1; max-height: 1; width: 1fr;
+        width: 1fr; height: 1; max-height: 1;
         background: $panel-lighten-1; 
     }   
     TitleBar {
@@ -371,34 +438,28 @@ class Window(Widget):
         &:hover { background: $panel-lighten-3; }          
         &.pressed { background: $primary; }
     }
-    CloseButton {
-        width: 3; height: 1; padding: 0;
-        &:hover { background: $error; }
-        &.pressed { background: $error-darken-2; color: $text-error; }        
-    }
-    MaximizeButton {
-        width: 3; height: 1; padding: 0;
+    .windowbutton {
+        width: 3; height: 1;
+        padding: 0;
+        content-align: center middle;
         &:hover { background: $panel-lighten-3; }
-        &.pressed { background: $primary; color: $text; }        
+        &.pressed { background: $primary; color: $text; }         
+        &.close {
+            &:hover { background: $error; }
+            &.pressed { background: $error-darken-2; color: $text-error; }          
+        }
     }    
-    HamburgerButton {
-        width: 3; height: 1; padding: 0;
-        &:hover { background: $panel-lighten-3; }
-        &.pressed { background: $primary; }        
-    }    
-    Resizer {
-        width: 2; height: 1; padding: 0; content-align: right middle;
-        &:hover { background: $panel-lighten-3; }
-        &.pressed { background: $primary; }
-    }
     #bottom_bar_text { width: 1fr; height: 1; padding: 0 1; }    
     #content_pane {
+        width: 1fr;
+        height: 1fr;    
         background: $surface;
         border-left: wide $panel-lighten-1;
         border-right: wide $panel-lighten-1;
+        border-top: none;
+        border-bottom: none;
         padding: 1 0 1 1; 
         align: center top;
-        width: 1fr; height: 1fr;
     }    
     """
 
@@ -407,6 +468,7 @@ class Window(Widget):
     # the focus. The VerticalScroll is set to not be focusable.
     BINDINGS = [
         Binding("ctrl+w", "close_window", "Close Window"),
+        Binding("ctrl+d", "minimize_window", "Minimize Window"),
         # All these below from ScrollableContainer:
         Binding("up", "scroll_up", "Scroll Up", show=False),
         Binding("down", "scroll_down", "Scroll Down", show=False),
@@ -414,17 +476,19 @@ class Window(Widget):
         Binding("end", "scroll_end", "Scroll End", show=False),
         Binding("pageup", "page_up", "Page Up", show=False),
         Binding("pagedown", "page_down", "Page Down", show=False),
-        # Binding("left", "scroll_left", "Scroll Left", show=False),
-        # Binding("right", "scroll_right", "Scroll Right", show=False),
-        # Binding("ctrl+pageup", "page_left", "Page Left", show=False),
-        # Binding("ctrl+pagedown", "page_right", "Page Right", show=False),
+        Binding("left", "scroll_left", "Scroll Left", show=False),
+        Binding("right", "scroll_right", "Scroll Right", show=False),
+        Binding("ctrl+pageup", "page_left", "Page Left", show=False),
+        Binding("ctrl+pagedown", "page_right", "Page Right", show=False),
     ]
 
     ###############
     #  REACTIVES  #
     ###############
     open_state: reactive[bool] = reactive(False, init=False)
-    "The open/closed state of the window. You can modify this directly if you wish."
+    """The open/minimized state of the window. You can modify this directly if you wish.
+    Note that this does not remove the window from the DOM or the window bar/manager. You
+    must use `remove_window()` or `close_window` to do that."""
     snap_state: reactive[bool] = reactive(True, init=False)
     "The lock state (snap to parent) of the window. You can modify this directly if you wish."
     maximize_state: reactive[bool] = reactive(False, init=False)
@@ -436,44 +500,29 @@ class Window(Widget):
     manager = window_manager  # ~ Reference the window manager instance.
     _current_layer = 0  #   Class variable to track the next available layer
     can_focus = True
+    _id: str  #   Override the parent's Optional[str] typing
+    _name: str  # Override the parent's Optional[str] typing    
 
-    class Closed(Message):
+    class Closed(WindowMessage):
         """Message sent when the window is closed."""
 
-        def __init__(self, window: Window) -> None:
-            super().__init__()
-            self.window = window
-
-        @property
-        def control(self) -> Window:
-            return self.window
-
-    class Opened(Message):
+    class Opened(WindowMessage):
         """Message sent when the window is opened."""
 
-        def __init__(self, window: Window) -> None:
-            super().__init__()
-            self.window = window
+    class Minimized(WindowMessage):
+        """Message sent when the window is minimized."""
 
-        @property
-        def control(self) -> Window:
-            return self.window
-
-    class Initialized(Message):
+    class Initialized(WindowMessage):
         """Message sent when the window is completed initialization."""
-
-        def __init__(self, window: Window) -> None:
-            super().__init__()
-            self.window = window
-
-        @property
-        def control(self) -> Window:
-            return self.window
 
     def __init__(
         self,
         *children: Widget,
-        name: str,
+        id: str,
+        mode: MODE = "temporary",
+        icon: str | None = None,
+        classes: str | None = None,
+        name: str | None = None,
         starting_horizontal: STARTING_HORIZONTAL = "center",
         starting_vertical: STARTING_VERTICAL = "middle",
         start_open: bool = False,
@@ -483,19 +532,33 @@ class Window(Widget):
         menu_options: dict[str, Callable[..., Optional[Any]]] = {},
         animated: bool = True,
         show_title: bool = True,
-        id: str | None = None,
-        classes: str | None = None,
         disabled: bool = False,
     ):
         """Initialize a window widget.
 
         Args:
             *children: Child widgets.
-            name: The name of the widget - Used for the window's title bar, the WindowBar, and the
-                WindowSwitcher. `name` is REQUIRED, unlike normal Textual widgets. You can set
-                `show_title` to False to hide the Window's name in the title bar.
-            starting_horizontal (str): The starting horizontal position of the window.
-            starting_vertical (str): The starting vertical position of the window.
+            id: The ID of the window - Used for the window's title bar, the WindowBar, and the
+                WindowSwitcher. `id` is REQUIRED, unlike normal Textual widgets. Underscores
+                will be replaced with spaces for displaying in the title bar, window bar, and
+                window switcher.
+                If you want the display name to be different from the ID for some reason,
+                you can set the `name` argument to whatever display name you'd like.
+                If you do not want the ID to be shown in the title bar, You can set the
+                `show_title` argument to False.
+            mode: This controls whether the widget should be removable, or a permanent fixture of your app.
+                In temporary mode, the close button will remove the window from the DOM as well as the
+                window bar and manager (like a normal desktop would). Ctrl-w behavior in this mode is to
+                remove the window.
+                In permanent mode, the close button is removed from the window and windowbar menus,
+                the window is only able to be minimized, and Ctrl-w behavior is to minimize the window.
+                (minimize and close will do the same thing in this mode).
+            icon: The icon for the window to use in the title bar and window bar.
+            classes: The CSS classes for the widget.
+            name: The name of the window. If you wish for the display name to be different than the
+                ID for some reason, you can set this to whatever display name you'd like.
+            starting_horizontal: The starting horizontal position of the window.
+            starting_vertical: The starting vertical position of the window.
             start_open (bool): Whether the window should start open or closed.
             start_snapped (bool): Whether the window should start snapped (locked) within the parent area.
             allow_resize (bool): Whether the window should be resizable.
@@ -509,26 +572,31 @@ class Window(Widget):
                 This will add a fade in/out effect when opening/closing the window. You can modify
                 the `animation_duration` attribute to change the duration of the animation.
             show_title (bool): Whether to show the title bar or not.
-            id: The ID of the widget in the DOM.
-            classes: The CSS classes for the widget.
             disabled: Whether the widget is disabled or not.
         """
 
+        if not id:
+            raise ValueError("Windows must provide an ID. It cannot be None or empty.")
+
         super().__init__(
             *children,
-            id=id,
             classes=classes,
-            disabled=disabled,
+            disabled=disabled
         )
-        self._name = name  #  This is an override from DOMnode. Because _name cannot be None here.
+
+        name_to_use = name if name else id.replace("_", " ").capitalize()
+
+        self._id = id
+        self._name = name_to_use
+        self.window_mode = mode
         self.initialized = False
         if start_open is False and animated is True:
             self.styles.opacity = 0.0
         self.display = start_open
-        self.start_open = start_open  #     This is saved for resetting the window.
-        self.starting_snap_state = start_snapped  #     Snap and Lock mean the same thing in this context.
-        self.set_reactive(Window.open_state, start_open)  #     Don't want to trigger the animations.
-        self.set_reactive(Window.snap_state, start_snapped)  #  These 3 reactives are handled manually.
+        self.start_open = start_open  #  This is saved for resetting the window.
+        self.starting_snap_state = start_snapped  #  Snap and Lock mean the same thing in this context.
+        self.set_reactive(Window.open_state, start_open)  #     <-- Don't want to trigger these animations.
+        self.set_reactive(Window.snap_state, start_snapped)  #      These 3 reactives are handled manually.
         self.set_reactive(Window.maximize_state, False)
 
         self.starting_horizontal = starting_horizontal
@@ -538,6 +606,7 @@ class Window(Widget):
         self.show_maximize_button = show_maximize_button
         self.menu_options = menu_options
         self.show_title = show_title
+        self.icon = icon
 
         # SECONDARY ATTRIBUTES (non-constructor)
         self.auto_bring_forward = True  #       If windows should be brought forward when opened.
@@ -551,6 +620,8 @@ class Window(Widget):
         self.saved_offset: Offset | None = None  # Save the offset of the window when it is maximized.
         self.max_width: int | None = None  # The maximum width of the window.
         self.max_height: int | None = None  # The maximum height of the window.
+        self.min_width: int
+        self.min_height: int
 
         # -------------------------------------------------------------------------#
 
@@ -563,7 +634,7 @@ class Window(Widget):
         # When someone uses the window, any children they pass in will be mounted
         # into the content pane. The top and bottom bars are fixed.
 
-        window_title = name if show_title else ""
+        window_title = name_to_use if show_title else ""
 
         self._top_bar = TopBar(window=self, window_title=window_title, options=self.menu_options)
         self._content_pane = VerticalScroll(id="content_pane", can_focus=False)
@@ -574,6 +645,8 @@ class Window(Widget):
             self._content_pane,
             self._bottom_bar,
         ]
+
+        self.manager.register_window(self)  # Register this window to the window manager.
 
     #! OVERRIDE
     async def _compose(self) -> None:
@@ -619,22 +692,35 @@ class Window(Widget):
     def _on_mount(self, event: events.Mount) -> None:
         super()._on_mount(event)
 
+        self.log.debug(f"Mounting layer {self.layer} with ID {self.id}.")
+
         self.starting_width = self.styles.width  # lock this in for Resetting later.
         self.starting_height = self.styles.height
 
-        # Setting the min/max/starting styles needs to be done in the mount method
-        # because they won't be available to read before this point.
+        if self.app._dom_ready:  # type: ignore[unused-ignore]
 
-        if self.styles.max_width and self.styles.max_width.cells:
-            self.max_width = self.styles.max_width.cells
+            self.log.debug("Detected the app is already initialized")
+            self._dom_ready()
         else:
-            self.max_width = None  #! These should maybe be reactive incase someone tries to change them.
+            self.log.debug("App not initialized. Calling after refresh...")
+            self.call_after_refresh(self._dom_ready)
 
-        if self.styles.max_height and self.styles.max_height.cells:
-            self.max_height = self.styles.max_height.cells
-        else:
-            self.max_height = None
+    def _dom_ready(self) -> None:
 
+        self._calculate_max_min_sizes()
+        self.offset = self._calculate_starting_position()
+        if self.allow_resize:
+            self.query_one(Resizer).set_max_min()
+        self.manager.window_ready(self)
+
+    def _calculate_max_min_sizes(self) -> tuple[Size, Size]:
+        # returns tuple of (min_size, max_size)
+
+        assert isinstance(self.parent, Widget)
+        assert self.parent.size.width is not None
+        assert self.parent.size.height is not None
+
+        # MIN #
         if self.styles.min_width and self.styles.min_width.cells:
             self.min_width = self.styles.min_width.cells
         else:
@@ -645,14 +731,19 @@ class Window(Widget):
         else:
             raise ValueError(f"Minimum height must be set to an integer value on {self.id}")
 
-        self.log.debug(f"layer {self.layer} with ID {self.id} mounted.")
+        # MAX #
+        if self.styles.max_width and self.styles.max_width.cells:
+            self.max_width = self.styles.max_width.cells
+        else:
+            self.max_width = self.parent.size.width
+        if self.styles.max_height and self.styles.max_height.cells:
+            self.max_height = self.styles.max_height.cells
+        else:
+            self.max_height = self.parent.size.height
 
-        self.manager.add_window(self)  # Register this window to the window manager.
-        self.manager.watch_for_dom_ready_runner()
-
-    def _on_unmount(self) -> None:
-        self.manager.remove_window(self)  # Remove this window from the window manager.
-        super()._on_unmount()
+        min_size = Size(self.min_width, self.min_height)
+        max_size = Size(self.max_width, self.max_height)
+        return (min_size, max_size)
 
     def _calculate_starting_position(self) -> Offset:
 
@@ -691,56 +782,88 @@ class Window(Widget):
             self.post_message(self.Initialized(self))
         return self.starting_offset
 
-    def _calculate_max_size(self) -> Size:
-        # This is used by the window manager, it's only called when it detects
-        # the DOM is ready.
+    def _execute_remove(self) -> None:
+        self.manager.remove_window(self)
+        self.post_message(self.Closed(self))
+        self.remove()
 
-        assert isinstance(self.parent, Widget)
-        assert self.parent.size.width is not None
-        assert self.parent.size.height is not None
+    def _close_animation(self, remove: bool) -> None:
 
-        if self.styles.max_width and self.styles.max_width.cells:
-            self.max_width = self.styles.max_width.cells
-        else:
-            self.max_width = self.parent.size.width
-        if self.styles.max_height and self.styles.max_height.cells:
-            self.max_height = self.styles.max_height.cells
-        else:
-            self.max_height = self.parent.size.height
-        return Size(self.max_width, self.max_height)
+        def close_animation_callback() -> None:
+            if remove:
+                self._execute_remove()
+            else:
+                self.display = False
+                self.post_message(self.Minimized(self))
 
-    def _close_animation(self) -> None:
-
-        def _close_animation_callback() -> None:
-            self.display = False
-
-        if self.animated:
-            self.styles.animate(
-                "opacity",
-                0.0,
-                duration=self.animation_duration,
-                on_complete=_close_animation_callback,
-            )
-        else:
-            self.display = False
+        if self.display:  # only do work if its currently displayed
+            if self.animated:
+                self.styles.animate(
+                    "opacity",
+                    0.0,
+                    duration=self.animation_duration,
+                    on_complete=close_animation_callback,
+                )
+            else:  # if not animated, invoke callback immediately:
+                close_animation_callback()
+        else:  # if not displayed, check if it was a removal call:
+            if remove:
+                self._execute_remove()
 
     def _open_animation(self) -> None:
 
         self.display = True
         if self.animated:
             self.styles.animate("opacity", 1.0, duration=self.animation_duration)
+        self.post_message(self.Opened(self))
 
     def on_mouse_down(self) -> None:
         self.bring_forward()
 
-    def focus(self, scroll_visible: bool = True) -> Self:
-        self.manager.append_focus_order(self)
-        return super().focus(scroll_visible=scroll_visible)
+    #! OVERRIDE
+    # def focus(self, scroll_visible: bool = True) -> Self:
+    #     self.log.debug(f"Focusing window {self.id!r}")
+    #     self.manager.change_focus_order(self)
+    #     self.manager.last_focused_window = self  # Update the focused window in the manager.
+    #     return super().focus(scroll_visible=scroll_visible)
+
+    #! OVERRIDE
+    def _on_focus(self, event: events.Focus) -> None:
+        self.log.debug(f"Focusing window {self.id!r}")
+        self.manager.change_focus_order(self)
+        self.manager.last_focused_window = self  # Update the focused window in the manager.
+        super()._on_focus(event)
+
+    #! OVERRIDE
+    @property
+    def id(self) -> str:
+        """The ID of this node.
+        This property is overridden from DOMnode because `id` cannot be none in the Window class."""
+        return self._id
+
+    # Also an override (part of the above)
+    @id.setter
+    def id(self, new_id: str) -> str:
+        """Sets the ID (may only be done once).
+
+        Args:
+            new_id: ID for this node.
+
+        Raises:
+            ValueError: If the ID has already been set.
+        """
+        check_identifiers("id", new_id)
+        self._nodes.updated()
+        if self._id:  # ~ this line was modified (empty string instead of None)
+            raise ValueError(f"Node 'id' attribute may not be changed once set (current id={self._id!r})")
+        self._id = new_id
+        return new_id
 
     @property
     def name(self) -> str:
-        """The name of the node."""
-        return self._name  # type: ignore
+        """The name of the node.
+        This property is overridden from DOMnode because `name` cannot be none in the Window class."""
+        return self._name
 
     ####################
     # ~ WATCH METHODS ~#
@@ -759,13 +882,13 @@ class Window(Widget):
                 self.bring_forward()
             if self.auto_focus:
                 self.focus()
-            self.post_message(self.Opened(self))
+            # self.post_message(self.Opened(self))
         else:
-            self._close_animation()
+            self._close_animation(remove=False)
             children = self.query(Widget)
-            for child in children:  # Anything focused in the window needs to be unfocused.
-                child.blur()  # self.display handles this mostly well, but
-            self.post_message(self.Closed(self))  # this is a safety net to prevent any issues.
+            for child in children:  #           Anything focused in the window must be unfocused.
+                child.blur()  #                 self.display handles this well, but this is
+            # self.post_message(self.Minimized(self))  #  a safety net to prevent any issues.
 
     def watch_maximize_state(self, value: bool) -> None:
 
@@ -789,7 +912,14 @@ class Window(Widget):
     ###############
 
     def action_close_window(self) -> None:
-        self.close_window()
+        # Either closes or minimizes depending on the window's `window_mode` setting.
+        if self.window_mode == "temporary":
+            self.close_window()
+        else:  # permanent
+            self.open_state = False
+
+    def action_minimize_window(self) -> None:
+        self.open_state = False
 
     def action_scroll_up(self) -> None:
         self._content_pane.action_scroll_up()
@@ -813,6 +943,24 @@ class Window(Widget):
     # ~ Public API ~ #
     ##################
 
+    def remove_window(self) -> None:
+        """This will remove the window from the DOM and the Window Bar."""
+        self._close_animation(remove=True)
+
+    def close_window(self) -> None:
+        """Alias for remove_window. (You may be looking for `Window.minimize`).
+        This will remove the window from the DOM and the Window Bar."""
+        self.remove_window()
+
+    def open_window(self) -> None:
+        """Runs the open animation (if animate=True), and brings the window forward
+        (if `auto_bring_forward` is set to True on the window)."""
+        self.open_state = True
+
+    def toggle_window(self) -> None:
+        """Toggle the window open and closed."""
+        self.open_state = not self.open_state
+
     def bring_forward(self) -> None:
         """This is called automatically when the window is opened, as long as
         `auto_bring_forward` is set to True on the window. If you want manual control,
@@ -828,6 +976,11 @@ class Window(Widget):
         """Resize the window to its maximum."""
         self.maximize_state = True
 
+    def minimize(self) -> None:
+        """This will close the window, but not remove it from the DOM.
+        Runs the close animatiom and blurs all children."""
+        self.open_state = False
+
     def restore(self) -> None:
         """(Opposite of maximize) Restore the window to its previous size and position."""
         self.maximize_state = False
@@ -835,18 +988,6 @@ class Window(Widget):
     def toggle_maximize(self) -> None:
         """Toggle the window between its maximum size and its previous size."""
         self.maximize_state = not self.maximize_state
-
-    def close_window(self) -> None:
-        """Runs the close animatiom and blurs all children."""
-        self.open_state = False
-
-    def open_window(self) -> None:
-        """Runs the open animation, and optionally brings the window forward."""
-        self.open_state = True
-
-    def toggle_window(self) -> None:
-        """Toggle the window open and closed."""
-        self.open_state = not self.open_state
 
     def enable_snap(self) -> None:
         """Enable window locking (set snap_state to True)"""
@@ -885,8 +1026,7 @@ class Window(Widget):
     def reset_position(self) -> None:
         """Reset the window position to its starting position."""
 
-        self._calculate_starting_position()
-        self.offset = self.starting_offset
+        self.offset = self._calculate_starting_position()
 
     def clamp_into_parent_area(self) -> None:
         """This function returns the widget into its parent area. \n

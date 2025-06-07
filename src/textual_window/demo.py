@@ -6,7 +6,8 @@
 
 # Python imports:
 from __future__ import annotations
-from typing import cast
+from typing import get_args
+import random
 
 # Textual imports:
 from textual.app import App, ComposeResult
@@ -15,9 +16,10 @@ from textual.binding import Binding
 from textual.widget import Widget
 from textual.containers import Container, Horizontal
 from rich.text import Text
+from textual.screen import Screen
 from textual.widgets import (
-    # Header,
-    Footer,
+    Header,
+    # Footer,
     Button,
     TextArea,
     RichLog,
@@ -28,6 +30,7 @@ from textual.widgets import (
 
 # Local imports:
 from textual_window import Window, WindowBar, WindowSwitcher
+from textual_window.window import STARTING_HORIZONTAL, STARTING_VERTICAL
 
 
 lorem_ipsum = """Lorem ipsum dolor sit amet, consectetur adipiscing elit. \
@@ -40,10 +43,35 @@ anim id est laborum."""
 
 static_info = """Try right-clicking the buttons on the WindowBar (below) to see \
 window-specific context menus. You can also left or right-click on the WindowBar itself to \
-see a global context menu."""
+see a global context menu.
+Note that for transparency to work, your terminal must support it and you must have it enabled."""
+
+static_controls = """\
+[$accent]F1[/$accent]: Window Switcher
+[$accent]Ctrl+e[/$accent]: WindowBar
+[$accent]Ctrl+d[/$accent]: Minimize window
+[$accent]Ctrl+w[/$accent]: Close window
+[$accent]Ctrl+q[/$accent]: Quit the app \
+"""
+
+
+class DummyScreen(Screen[None]):
+    # This exists to force the screen to refresh when toggling the transparency.
+    # It's a bit of a hack, but it works.
+
+    def on_mount(self) -> None:
+        self.dismiss()
 
 
 class MyWindow(Window):
+
+    def __init__(self) -> None:
+        super().__init__(
+            id="window_2",
+            allow_resize=False,
+            starting_horizontal="centerright",
+            starting_vertical="lowermiddle",
+        )
 
     def compose(self) -> ComposeResult:
 
@@ -52,34 +80,13 @@ class MyWindow(Window):
     @on(Switch.Changed)
     def switch_changed(self, event: Switch.Changed) -> None:
 
-        richlog = cast(RichLog, self.app.query_one("#rich_log"))
+        richlog = self.app.query_one("#rich_log", RichLog)
         richlog.write(f"Switch changed to {event.value}")
 
 
 class WindowDemo(App[None]):
 
-    CSS = """
-    RichLog { border: outer $secondary; width: 80%; height: 4fr; margin: 2 0;}
-    # WindowBar { dock: top; }       /* Setting dock here will override the constructor setting */
-    #main_container { align: center middle; }
-    #center_content { align: center middle; }
-    #info_container { 
-        width: 80%; height: 1fr;
-        content-align: center middle;
-        border: solid $primary;
-        margin: 0 0 1 0; padding: 0 1;
-    }
-    #window0 {                         
-        width: 25; height: 13;      
-        min-width: 22; min-height: 13;      /* These min and max settings will be respected */
-        max-width: 40; max-height: 20;      /* when the window is resized */
-    }                                       /* The default min w/h is 12/6 */
-    #window1 { width: 35; height: 16; }     /* The default max w/h is the size of the parent container */
-    #window2 { width: 15; height: 7; min-width:14 ; min-height: 7;}
-    .spacer { width: 1fr; }
-    .button_container { height: 3; padding: 0 1; }
-    .bar_button { width: auto; height: 1; padding: 0 2; } 
-    """
+    CSS_PATH = "demostyles.tcss"
 
     BINDINGS = [
         Binding("ctrl+e", "toggle_windowbar", "Window Bar"),
@@ -87,6 +94,11 @@ class WindowDemo(App[None]):
     ]
 
     app_initialized: bool = False
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.title = "Textual-Window Demo"
+        self.window_counter = 3
 
     def compose(self) -> ComposeResult:
 
@@ -96,8 +108,10 @@ class WindowDemo(App[None]):
         }
 
         yield WindowSwitcher()
-        yield WindowBar(start_open=True)  # If you have either a Header or Footer, WindowBar Must go
-        # yield Header()         # before them in the compose method. Otherwise it will cover them up.
+        yield WindowBar(start_open=True)
+        # If you have either a Header or Footer, WindowBar Must go
+        # before them in the compose method. Otherwise it will cover them up.
+        yield Header(show_clock=True, icon="⚙")
 
         with Container(id="main_container"):
 
@@ -109,11 +123,14 @@ class WindowDemo(App[None]):
 
             # 1) Context manager:
             with Window(
-                id="window0",
-                name="Window 0",
-                starting_horizontal="center",
-                starting_vertical="uppermiddle",
+                id="window_0",
+                icon="🏠︎",  # or 🏠
+                mode="permanent",
+                starting_horizontal="centerleft",
+                starting_vertical="middle",
+                start_open=True,
             ):
+                yield Static("This window is permanent. It can only be minimized.")
                 yield TextArea(id="input1")
                 with Horizontal(classes="button_container"):
                     yield Static(classes="spacer")
@@ -123,37 +140,41 @@ class WindowDemo(App[None]):
             window_widgets: list[Widget] = [Static(lorem_ipsum), Checkbox("I have read the above")]
             yield Window(
                 *window_widgets,
-                id="window1",
-                name="Window 1",
-                starting_horizontal="left",
-                starting_vertical="middle",
+                id="window_1",
+                icon="✰",
+                starting_horizontal="right",
+                starting_vertical="uppermiddle",
                 show_maximize_button=True,
                 menu_options=window1_menu_options,
             )
 
             # 3) Custom widget with compose method:
-            yield MyWindow(
-                id="window2",
-                name="Window 2",
-                allow_resize=False,
-                animated=False,  # animated=False will disable the Fade effect.
-                starting_horizontal="centerright",
-                starting_vertical="lowermiddle",
-                start_open=False,
-            )
+            yield MyWindow()
 
             with Container(id="center_content"):
-                self.rich_log = RichLog(id="rich_log")
-                yield self.rich_log
-                yield Static(static_info, id="info_container")
+                with Horizontal(id="main_info_container", classes="upper_info_container"):
+                    with Horizontal(classes="upper_info_container left"):
+                        yield RichLog(id="rich_log")
+                    with Horizontal(classes="upper_info_container"):
+                        yield Static(static_controls, classes="info_container controls")
+                with Horizontal(classes="button_container"):
+                    yield Button("Add Window", id="add_window", classes="bar_button")
+                    yield Button("Show/Hide Info", id="hide_info", classes="bar_button")
+                    yield Button(
+                        "Toggle background transparency",
+                        id="toggle_transparency",
+                        classes="bar_button",
+                    )
+                yield Static(static_info, id="bottom_info_container", classes="info_container info")
 
         # yield WindowBar()      # If you have either a Header or Footer, WindowBar Must go
-        yield Footer()  # before them in the compose method. Otherwise it will cover them up.
+        # yield Footer()  #        before them in the compose method. Otherwise it will cover them up.
 
     def on_mount(self) -> None:
         main_container = self.query_one("#main_container")
         main_container.styles.opacity = 0.0  # Chad loading screen
-        self.query_one(RichLog).can_focus = False
+        self.rich_log = self.query_one(RichLog)
+        self.rich_log.can_focus = False
 
     ################################
     # ~ Hamburger Menu Callbacks ~ #
@@ -183,12 +204,17 @@ class WindowDemo(App[None]):
     @on(Window.Closed)
     def window_closed(self, event: Window.Closed) -> None:
 
-        self.rich_log.write(Text.from_markup(f"{event.window.id} [red]closed."))
+        self.rich_log.write(Text.from_markup(f"{event.window.name} [bright_red]closed."))
 
     @on(Window.Opened)
     def window_opened(self, event: Window.Opened) -> None:
 
-        self.rich_log.write(Text.from_markup(f"{event.window.id} [green]opened."))
+        self.rich_log.write(Text.from_markup(f"{event.window.name} [bright_green]opened."))
+
+    @on(Window.Minimized)
+    def window_minimized(self, event: Window.Opened) -> None:
+
+        self.rich_log.write(Text.from_markup(f"{event.window.name} [bright_yellow]minimized."))
 
     @on(Window.Initialized)
     def window_initialized(self, event: Window.Initialized) -> None:
@@ -196,8 +222,8 @@ class WindowDemo(App[None]):
         # Generally speaking, once one window is initialized, you can be confident
         # they're all ready to go and you can disable any loading screen you might have.
 
-        self.rich_log.write(Text.from_markup(f"{event.window.id} [blue]initialized."))
-        self.log(f"{event.window.id} initialized.")
+        self.rich_log.write(Text.from_markup(f"{event.window.name} [bright_blue]initialized."))
+        self.log(f"{event.window.name} initialized.")
 
         if not self.app_initialized:
             main_container = self.query_one("#main_container")
@@ -211,9 +237,50 @@ class WindowDemo(App[None]):
     @on(Button.Pressed, "#button1")
     def button1_pressed(self) -> None:
 
-        textarea = cast(TextArea, self.query_one("#input1"))
+        textarea = self.query_one("#input1", TextArea)
         self.rich_log.write(textarea.text)
         textarea.text = ""
+
+    @on(Button.Pressed, "#add_window")
+    def add_window(self) -> None:
+
+        # This is an example of how to add a new window dynamically.
+        # You can customize the new window as needed.
+
+        icons = ["🚀", "📺", "🔨", "🛒", "☕︎", "🔍︎", "🕪", "🔒", "💾"]
+
+        new_window = Window(
+            id=f"window_{self.window_counter}",
+            icon=random.choice(icons),
+            start_open=True,
+            show_maximize_button=True,
+            starting_horizontal=random.choice(get_args(STARTING_HORIZONTAL)),
+            starting_vertical=random.choice(get_args(STARTING_VERTICAL)),
+        )
+        self.query_one("#main_container").mount(new_window)
+        self.window_counter += 1
+
+    @on(Button.Pressed, "#hide_info")
+    def hide_info(self) -> None:
+
+        upper_info = self.query_one("#main_info_container")
+        bottom_info = self.query_one("#bottom_info_container")
+
+        if upper_info.visible:
+            upper_info.styles.visibility = "hidden"
+        else:
+            upper_info.styles.visibility = "visible"
+
+        if bottom_info.visible:
+            bottom_info.styles.visibility = "hidden"
+        else:
+            bottom_info.styles.visibility = "visible"
+
+    @on(Button.Pressed, "#toggle_transparency")
+    def toggle_transparency(self) -> None:
+
+        self.ansi_color = not self.ansi_color
+        self.push_screen(DummyScreen())
 
     @on(Checkbox.Changed)
     def checkbox_changed(self, event: Checkbox.Changed) -> None:

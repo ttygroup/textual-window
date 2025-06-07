@@ -9,6 +9,7 @@ from textual.message import Message
 
 
 class NoSelectStatic(Static):
+    """This class is used in window.py and windowbar.py to create buttons."""
 
     @property
     def allow_select(self) -> bool:
@@ -16,6 +17,7 @@ class NoSelectStatic(Static):
 
 
 class ButtonStatic(NoSelectStatic):
+    """This class is used in window.py, windowbar.py, and switcher.py to create buttons."""
 
     class Pressed(Message):
         def __init__(self, button: ButtonStatic) -> None:

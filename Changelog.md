@@ -1,5 +1,26 @@
 # Textual-Window Changelog
 
+## 0.3.0 - Dynamic windows update
+
+- Breaking change: The `name` attribute is no longer required, the `id` attribute is now required instead. The window will automatically replace any underscores in the id with spaces to use for the display name (in titlebar, etc).
+- Windows have a new 'mode' setting to choose between "temporary" and "permanent". In temporary mode, windows will be removed from the DOM and windowbar when closed (as a normal Desktop would). In permanent mode, the close button is removed and the window can only be minimized.
+- Windows can now be added and removed from the DOM and the window bar and manager will update automatically.
+- Added a new "Add window" button to the demo to demonstrate the dynamic windows feature.
+- Added new "close" and "minimize" options to the WindowBar menus to reflect how these are now 2 different options.
+- Added new buttons in the demo to hide the RichLog and to make the background transparent.
+- Added new hotkey "ctrl-d" to windows for minimizing.
+- Window switcher now toggles the minimize state of the currently focused window.
+- Added a new icon argument for the window.
+- Removed the footer from the demo because the transparency mode (ansi_color) messes it up for some reason (but nothing else, strangely).
+- Replaced the windowbar system that built windows at start with a new dynamic system that can add and remove window buttons in real time.
+- Replaced the manager worker that watched for _dom_ready on a loop to instead rely on `call_after_refresh` in a window's `on_mount` method.
+- Windows now track the DOM ready themselves due to the above feature, and calculate their own max sizes and starting positions accordingly, and add themselves to the window bar (still through the manager) when they're ready.
+
+## 0.2.3
+
+- Moved all button symbols to a single dictionary to remove code duplication.
+- Slightly modified the button rendering logic to remove whitespace, hopefully fixes a graphical glitching issue.
+
 ## 0.2.2
 
 - Added 3 new methods:

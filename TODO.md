@@ -1,14 +1,28 @@
 # Features checklist
 
-## Features to add (0.3.0)
+## Features to add
 
+- [ ] Build system for windowbar to manage overflowing / many windows.
+- [ ] Turn Window switcher into a grid so it grows vertically (connected to above).
 - [ ] Add option to make the WindowBar floating.
+- [ ] Add fullscreen mode that pushes a screen.
 - [ ] Implement way to deal with relative sizes.  
 - [ ] Add switch between snapping to parent container and snapping to screen.  
-- [ ] Add the disable snap state feature.  - ????
+- [ ] Add ability to disable toggling the snap.
 - [ ] Turn allow_resize into a reactive variable.
 - [ ] Add a way to change the mouse controls, something other than right-clicking
 - [ ] Add a Modal window option (Modal screen + window combo)
+
+## Finished (0.3.0)
+
+- [X] Build a secondary mode where windows can be mounted and unmounted
+- [X] Add button to make the demo background transparent.
+- [X] Replace the looping DOM ready worker in the manager with call_after_refresh system
+- [X] Replace the windowbar's build at launch system with a dynamic system for the secondary mode.
+- [X] Make switcher toggle minimize state of the focused window
+- [X] Change the 'name' attribute being required to 'id' instead.
+- [X] Add icons to Window title and Window Bar
+- [X] Randomize the add window button in the demo
 
 ## Finished (0.2.0)
 

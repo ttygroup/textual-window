@@ -1,0 +1,37 @@
+RichLog { 
+    border: wide $secondary; 
+    height: 1fr;
+    min-width: 35; width: 1fr;
+    margin: 1 0; 
+    padding: 0;
+}
+# WindowBar { dock: top; }    /* Set the initial dock to top in CSS if you desire */
+
+Button {&:focus {text-style: none;}}
+#main_container { align: center middle; background: transparent; } 
+#center_content { width: 80%; align: center middle; background: transparent; }
+.upper_info_container { 
+    width: 1fr; height: 1fr; 
+    align: center middle;
+    margin: 0; padding: 0; 
+    &.left { min-width: 35; }
+}
+.info_container { 
+    width: auto; height: auto;
+    content-align: center middle;
+    margin: 0 0 1 0;
+    padding: 1;
+    background: $surface;
+    &.info { border: wide $primary; width: 1fr; }
+    &.controls { border: wide $accent; height: auto; }
+}
+#window_0 {                         
+    width: 30; height: 14;      
+    min-width: 22; min-height: 13;      /* These min and max settings will be respected */
+    max-width: 40; max-height: 20;      /* when the window is resized */
+}                                       /* The default min w/h is 12/6 */
+#window_1 { width: 35; height: 16; }    /* The default max w/h is the size of the parent container */
+#window_2 { width: 16; height: 7; min-width:14 ; min-height: 7;}
+.spacer { width: 1fr; }
+.button_container { height: 3; padding: 0 1;}
+.bar_button { margin: 0 2; } 

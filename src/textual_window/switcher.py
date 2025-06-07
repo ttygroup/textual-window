@@ -70,6 +70,8 @@ class WindowSwitcherScreen(ModalScreen[None]):
     .label { width: auto; height: 1; content-align: center middle; }    
     """
 
+    manager = window_manager
+
     BINDINGS = [
         Binding("escape", "cancel"),
         Binding("enter", "confirm"),
@@ -80,15 +82,18 @@ class WindowSwitcherScreen(ModalScreen[None]):
     def __init__(self, cycle_key: str = "f1") -> None:
         super().__init__()
         self.cycle_key = cycle_key
-        self.windows = window_manager.get_windows_as_dict()
+        self.windows = self.manager.get_windows_as_dict()
 
     def compose(self) -> ComposeResult:
 
         with Container(id="menu_container"):
             with Horizontal(id="menu_inner"):
-                if window_manager.recent_focus_order:
-                    for window in window_manager.recent_focus_order:
-                        yield WindowSwitcherButton(name=window.name, content=window.name)
+                if self.manager.recent_focus_order:
+                    for window in self.manager.recent_focus_order:
+                        yield WindowSwitcherButton(name=window.id, content=window.name)
+                        # using name instead of id above, because otherwise it would be
+                        # trying to re-use a unique id, and cause a bug.
+                        # The ol' name/id switcheroo.
                 else:
                     raise RuntimeError("Windows not loaded into recent_focus_order.")
 
@@ -103,12 +108,12 @@ class WindowSwitcherScreen(ModalScreen[None]):
     @on(WindowSwitcherButton.Pressed)
     def switcher_button_pressed(self, event: WindowSwitcherButton.Pressed) -> None:
 
-        window_name = event.button.name
-        if window_name in self.windows:
-            window = self.windows[window_name]
+        window_id = event.button.name
+        if window_id in self.windows:
+            window = self.windows[window_id]
             window.open_window()
         else:
-            raise ValueError(f"Window {window_name} not found in window manager.")
+            raise ValueError(f"Window {window_id} not found in window manager.")
 
     ##############################
     # ~ Actions / Key handling ~ #
@@ -128,15 +133,18 @@ class WindowSwitcherScreen(ModalScreen[None]):
         buttons = self.query(WindowSwitcherButton)
         for button in buttons:
             if button.has_focus:
-                window_name = button.name
-                if window_name in self.windows:
-                    window = self.windows[window_name]
-                    window.open_window()
-                    window.bring_forward()
-                    window.focus()
+                window_id = button.name
+                if window_id in self.windows:
+                    window = self.windows[window_id]
+                    if window == self.manager.last_focused_window and window.display:
+                        window.minimize()
+                    else:
+                        window.open_window()
+                        window.bring_forward()
+                        window.focus()
                     break
                 else:
-                    raise ValueError(f"Window {window_name} not found in window manager.")
+                    raise ValueError(f"Window {window_id} not found in window manager.")
 
         self.dismiss(None)
 
@@ -145,3 +153,7 @@ class WindowSwitcherScreen(ModalScreen[None]):
 
     def action_cycle_previous(self) -> None:
         self.app.action_focus_previous()
+
+    def action_cancel(self) -> None:
+        """Dismiss the screen without taking any action."""
+        self.dismiss(None)
