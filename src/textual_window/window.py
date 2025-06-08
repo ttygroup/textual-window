@@ -501,7 +501,7 @@ class Window(Widget):
     _current_layer = 0  #   Class variable to track the next available layer
     can_focus = True
     _id: str  #   Override the parent's Optional[str] typing
-    _name: str  # Override the parent's Optional[str] typing    
+    _name: str  # Override the parent's Optional[str] typing
 
     class Closed(WindowMessage):
         """Message sent when the window is closed."""
@@ -578,11 +578,7 @@ class Window(Widget):
         if not id:
             raise ValueError("Windows must provide an ID. It cannot be None or empty.")
 
-        super().__init__(
-            *children,
-            classes=classes,
-            disabled=disabled
-        )
+        super().__init__(*children, classes=classes, disabled=disabled)
 
         name_to_use = name if name else id.replace("_", " ").capitalize()
 
@@ -692,17 +688,12 @@ class Window(Widget):
     def _on_mount(self, event: events.Mount) -> None:
         super()._on_mount(event)
 
-        self.log.debug(f"Mounting layer {self.layer} with ID {self.id}.")
-
         self.starting_width = self.styles.width  # lock this in for Resetting later.
         self.starting_height = self.styles.height
 
         if self.app._dom_ready:  # type: ignore[unused-ignore]
-
-            self.log.debug("Detected the app is already initialized")
             self._dom_ready()
         else:
-            self.log.debug("App not initialized. Calling after refresh...")
             self.call_after_refresh(self._dom_ready)
 
     def _dom_ready(self) -> None:
@@ -783,7 +774,7 @@ class Window(Widget):
         return self.starting_offset
 
     def _execute_remove(self) -> None:
-        self.manager.remove_window(self)
+        self.manager.unregister_window(self)
         self.post_message(self.Closed(self))
         self.remove()
 
@@ -821,15 +812,7 @@ class Window(Widget):
         self.bring_forward()
 
     #! OVERRIDE
-    # def focus(self, scroll_visible: bool = True) -> Self:
-    #     self.log.debug(f"Focusing window {self.id!r}")
-    #     self.manager.change_focus_order(self)
-    #     self.manager.last_focused_window = self  # Update the focused window in the manager.
-    #     return super().focus(scroll_visible=scroll_visible)
-
-    #! OVERRIDE
     def _on_focus(self, event: events.Focus) -> None:
-        self.log.debug(f"Focusing window {self.id!r}")
         self.manager.change_focus_order(self)
         self.manager.last_focused_window = self  # Update the focused window in the manager.
         super()._on_focus(event)

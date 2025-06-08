@@ -8,8 +8,7 @@ You don't need to import from this module. You can simply do:
 # ~ Formatting - Black - max 110 characters / line
 
 from __future__ import annotations
-
-# from typing import Any  # , Callable, Optional
+from typing import Any
 
 from textual import on
 from textual import events
@@ -29,16 +28,21 @@ from textual.binding import Binding
 from textual_window.manager import window_manager
 from textual_window.button_bases import ButtonStatic
 
+__all__ = [
+    "WindowSwitcher",
+]
+
 
 class WindowSwitcher(Widget):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, cycle_key: str = "f1", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.display = False
+        self.cycle_key = cycle_key
 
     def show(self) -> None:
         """Show the window switcher."""
-        self.app.push_screen(WindowSwitcherScreen())
+        self.app.push_screen(WindowSwitcherScreen(self.cycle_key))
 
 
 class WindowSwitcherButton(ButtonStatic):
@@ -56,12 +60,14 @@ class WindowSwitcherScreen(ModalScreen[None]):
     #menu_container {
         background: $surface;
         width: auto; height: auto;
+        min-width: 15; min-height: 6;
         border: outer $panel;
         border-subtitle-color: $secondary;
     }
     #menu_inner { width: auto; height: auto; }
     WindowSwitcherButton {
-        width: auto; height: 4; content-align: center middle;
+        width: auto; height: 4;
+        content-align: center middle;
         border: round $panel;
         &:focus { border: round $primary; }
         &:hover { border: round $secondary; }
@@ -79,7 +85,7 @@ class WindowSwitcherScreen(ModalScreen[None]):
         Binding("right", "cycle_next"),
     ]
 
-    def __init__(self, cycle_key: str = "f1") -> None:
+    def __init__(self, cycle_key: str) -> None:
         super().__init__()
         self.cycle_key = cycle_key
         self.windows = self.manager.get_windows_as_dict()
@@ -94,8 +100,7 @@ class WindowSwitcherScreen(ModalScreen[None]):
                         # using name instead of id above, because otherwise it would be
                         # trying to re-use a unique id, and cause a bug.
                         # The ol' name/id switcheroo.
-                else:
-                    raise RuntimeError("Windows not loaded into recent_focus_order.")
+                yield WindowSwitcherButton(name="desktop", content="Desktop")
 
     def on_mount(self) -> None:
 
@@ -107,11 +112,14 @@ class WindowSwitcherScreen(ModalScreen[None]):
 
     @on(WindowSwitcherButton.Pressed)
     def switcher_button_pressed(self, event: WindowSwitcherButton.Pressed) -> None:
+        """Handles clicking on a window button."""
 
         window_id = event.button.name
         if window_id in self.windows:
             window = self.windows[window_id]
             window.open_window()
+        elif window_id == "desktop":
+            self.manager.minimize_all_windows()
         else:
             raise ValueError(f"Window {window_id} not found in window manager.")
 
@@ -143,6 +151,8 @@ class WindowSwitcherScreen(ModalScreen[None]):
                         window.bring_forward()
                         window.focus()
                     break
+                elif window_id == "desktop":
+                    self.manager.minimize_all_windows()
                 else:
                     raise ValueError(f"Window {window_id} not found in window manager.")
 

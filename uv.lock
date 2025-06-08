@@ -827,7 +827,7 @@ wheels = [
 
 [[package]]
 name = "textual-window"
-version = "0.2.3"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "textual" },

@@ -1,5 +1,15 @@
 # Textual-Window Changelog
 
+## 0.3.1
+
+- Added a 'Desktop' button in the window switcher which will minimize all windows.
+- Fixed bug with window switcher crashing when there are no windows.
+- Made the cycle key be an argument on the WindowSwitcher class.
+- Added __all__ variables to windowbar.py, switcher.py, and manager.py
+- Manager's `remove_window` method renamed to `unregister_window`.
+- Fixed bug in manager where close_all_windows crashed from a window trying to focus while the stack is being closed.
+- Renamed `_add_window` and `_remove_window` in the window bar to `add_window_button` and `remove_window_button`.
+
 ## 0.3.0 - Dynamic windows update
 
 - Breaking change: The `name` attribute is no longer required, the `id` attribute is now required instead. The window will automatically replace any underscores in the id with spaces to use for the display name (in titlebar, etc).

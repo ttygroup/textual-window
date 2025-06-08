@@ -34,6 +34,10 @@ from textual_window.button_bases import NoSelectStatic, ButtonStatic
 
 DOCK_DIRECTION = Literal["top", "bottom"]
 
+__all__ = [
+    "WindowBar",
+]
+
 
 class WindowBarButton(NoSelectStatic):
 
@@ -361,7 +365,7 @@ class WindowBar(Horizontal):
             raise ValueError("Dock must be either 'top' or 'bottom'")
 
     @work(group="windowbar")
-    async def _add_window(self, window: Window) -> None:
+    async def add_window_button(self, window: Window) -> None:
         # Called by the WindowManager when a new window is added.
         # It will create a button for the window and add it to the WindowBar.
         # There is no need to call this manually.
@@ -378,7 +382,7 @@ class WindowBar(Horizontal):
         )
 
     @work(group="windowbar")
-    async def _remove_window(self, window: Window) -> None:
+    async def remove_window_button(self, window: Window) -> None:
         # Called by the WindowManager when a window is removed.
         # It will remove the button for the window from the WindowBar.
         # There is no need to call this manually.

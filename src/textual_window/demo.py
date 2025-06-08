@@ -124,7 +124,7 @@ class WindowDemo(App[None]):
             # 1) Context manager:
             with Window(
                 id="window_0",
-                icon="🏠︎",  # or 🏠
+                icon="🏠",
                 mode="permanent",
                 starting_horizontal="centerleft",
                 starting_vertical="middle",
@@ -247,7 +247,7 @@ class WindowDemo(App[None]):
         # This is an example of how to add a new window dynamically.
         # You can customize the new window as needed.
 
-        icons = ["🚀", "📺", "🔨", "🛒", "☕︎", "🔍︎", "🕪", "🔒", "💾"]
+        icons = ["🚀", "📺", "🔨", "🛒", "🔒", "💾"]
 
         new_window = Window(
             id=f"window_{self.window_counter}",

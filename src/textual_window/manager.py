@@ -13,24 +13,17 @@ to all of them."""
 # ~ Formatting - Black - max 110 characters / line
 
 from __future__ import annotations
-from typing import TYPE_CHECKING  # , Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # from textual.app import App
     from textual_window.window import Window
     from textual_window.windowbar import WindowBar
-# import asyncio
-# from collections import deque
 
-# from textual.css.query import NoMatches
-# from textual import work
-# from textual._context import NoActiveAppError  # type: ignore[unused-ignore]
 from textual.dom import DOMNode
 
-# Note: all type ignores with 'unused-ignore' are because Pyright and MyPy
-# disagree with each other about whether the line is actually an error.
-# Pyright says it is because of the private attribute access. But MyPy
-# does not seem to care about this (even in strict mode).
+__all__ = [
+    "window_manager",
+]
 
 
 class WindowManager(DOMNode):
@@ -59,6 +52,16 @@ class WindowManager(DOMNode):
         self.last_focused_window: Window | None = None
         self.windowbar: WindowBar | None = None
         self.recent_focus_order: list[Window] = []
+
+        # These 3 variables are just used to keep track of the closing process.
+        # All 3 get reset every time the process finishes.
+        self.closing_in_progress = False
+        self.num_of_temporary_windows = 0
+        self.checked_in_closing_windows = 0
+
+    def window_ready(self, window: Window) -> None:
+        if self.windowbar:
+            self.windowbar.add_window_button(window)  # type: ignore[unused-ignore]
 
     def register_windowbar(self, windowbar: WindowBar) -> None:
         """Register the windowbar with the manager. This is done automatically when the
@@ -92,18 +95,14 @@ class WindowManager(DOMNode):
             )
         self.recent_focus_order.append(window)
 
-    def window_ready(self, window: Window) -> None:
-        if self.windowbar:
-            self.windowbar._add_window(window)  # type: ignore[unused-ignore]
-
-    def remove_window(self, window: Window) -> None:
+    def unregister_window(self, window: Window) -> None:
         """Used by windows to unregister with the manager.
         Windows do this automatically when they are unmounted. There should not be any
         need to call this method manually."""
 
         if window.id in self.windows:
             self.windows.pop(window.id)
-            self.log.debug(f"func remove_window: Unregistered {window.id} from the manager.")
+            self.log.debug(f"func unregister_window: Unregistered {window.id} from the manager.")
         else:
             raise ValueError(
                 "Window ID not found in the manager. "
@@ -112,9 +111,16 @@ class WindowManager(DOMNode):
         self.recent_focus_order.remove(window)
 
         if self.windowbar:
-            self.windowbar._remove_window(window)  # type: ignore[unused-ignore]
-        else:
-            self.log.debug("func windowbar_build_buttons: App does not have a WindowBar. ")
+            self.windowbar.remove_window_button(window)  # type: ignore[unused-ignore]
+
+        if self.closing_in_progress:
+            if window.window_mode == "temporary":  # <- this shouldn't be necessary.
+                self.checked_in_closing_windows += 1
+
+            if self.checked_in_closing_windows == self.num_of_temporary_windows:
+                self.checked_in_closing_windows = 0
+                self.num_of_temporary_windows = 0
+                self.call_after_refresh(lambda: setattr(self, "closing_in_progress", False))
 
     def get_windows_as_dict(self) -> dict[str, Window]:
         """Get a dictionary of all windows."""
@@ -134,15 +140,33 @@ class WindowManager(DOMNode):
             self.recent_focus_order.remove(window)
             self.recent_focus_order.insert(0, window)
         else:
-            raise RuntimeError("No recent focus order found. Please make sure the DOM is ready.")
+            if not self.closing_in_progress:
+                raise RuntimeError(
+                    "No windows in the recent focus order. "
+                    "This should not happen. Please report this issue."
+                )
 
     def open_all_windows(self) -> None:
+        """Open all windows."""
         for window in self.windows.values():
             window.open_state = True
 
     def close_all_windows(self) -> None:
+        """Close all windows. This will close all temporary windows and
+        minimize all permanent windows."""
+
+        # First we need to count how many temporary windows there are.
+        # It counts them as they unregister so it knows when it can set
+        # closing_in_progress back to False.
+        self.num_of_temporary_windows = len(
+            [w for w in self.windows.values() if w.window_mode == "temporary"]
+        )
+
+        # This makes a copy because otherwise it would get smaller
+        # while iterating over it.
         windows_copy = self.windows.copy()
 
+        self.closing_in_progress = True
         for window in windows_copy.values():
             if window.window_mode == "temporary":
                 window.remove_window()
@@ -150,6 +174,7 @@ class WindowManager(DOMNode):
                 window.open_state = False
 
     def minimize_all_windows(self) -> None:
+        """Minimize all windows."""
         for window in self.windows.values():
             window.open_state = False
 
