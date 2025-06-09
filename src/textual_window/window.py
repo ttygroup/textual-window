@@ -7,37 +7,31 @@ You don't need to import from this module. You can simply do:
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
+# Python imports
 from __future__ import annotations
 from typing import Literal, Any, TYPE_CHECKING, Callable, Optional, Iterable
 from textual.await_remove import AwaitRemove
-
-# from typing_extensions import Self
 
 if TYPE_CHECKING:
     from textual.visual import VisualType
     from textual.css.query import QueryType
     from textual.app import ComposeResult
 
+# Textual and Rich imports
 import textual.events as events
 from textual._compose import compose  # type: ignore[unused-ignore]
 from textual.dom import check_identifiers
 from textual.widget import Widget, AwaitMount
 from textual.message import Message
 from textual.binding import Binding
-
 from textual import on, work
 from textual.geometry import clamp, Size
-
-# from textual.css.query import NoMatches
-
-# from textual.widgets import Static
 from textual.containers import Horizontal, VerticalScroll, Container
 from textual.screen import ModalScreen
 from textual.geometry import Offset
 from textual.reactive import reactive
 
-# from rich.emoji import Emoji
-
+# Local imports
 from textual_window.manager import window_manager
 from textual_window.button_bases import ButtonStatic, NoSelectStatic
 
@@ -578,6 +572,8 @@ class Window(Widget):
         if not id:
             raise ValueError("Windows must provide an ID. It cannot be None or empty.")
 
+        # TODO - add more validation here
+
         super().__init__(*children, classes=classes, disabled=disabled)
 
         name_to_use = name if name else id.replace("_", " ").capitalize()
@@ -696,16 +692,24 @@ class Window(Widget):
         else:
             self.call_after_refresh(self._dom_ready)
 
-    def _dom_ready(self) -> None:
+    @work(group="window_ready")
+    async def _dom_ready(self) -> None:
 
-        self._calculate_max_min_sizes()
-        self.offset = self._calculate_starting_position()
+        min_size, max_size = await self._calculate_max_min_sizes()
+        self.min_width = min_size.width
+        self.min_height = min_size.height
+        self.max_width = max_size.width
+        self.max_height = max_size.height
+
+        self.offset = await self._calculate_starting_position()
         if self.allow_resize:
             self.query_one(Resizer).set_max_min()
-        self.manager.window_ready(self)
+        ready_result = await self.manager.window_ready(self)
+        if ready_result:  # this means it detected there is a window bar.
+            self.manager.signal_window_state(self, self.display)
 
-    def _calculate_max_min_sizes(self) -> tuple[Size, Size]:
-        # returns tuple of (min_size, max_size)
+    async def _calculate_max_min_sizes(self) -> tuple[Size, Size]:
+        "Returns tuple of `(min_size, max_size)`"
 
         assert isinstance(self.parent, Widget)
         assert self.parent.size.width is not None
@@ -713,30 +717,37 @@ class Window(Widget):
 
         # MIN #
         if self.styles.min_width and self.styles.min_width.cells:
-            self.min_width = self.styles.min_width.cells
+            min_width = self.styles.min_width.cells
         else:
+            # Minimum width must be set to an integer. This one can't be magicked away.
+            # Allowing relative values for a minimum is just not practical.
             raise ValueError(f"Minimum width must be set to an integer value on {self.id}")
 
         if self.styles.min_height and self.styles.min_height.cells:
-            self.min_height = self.styles.min_height.cells
+            min_height = self.styles.min_height.cells
         else:
             raise ValueError(f"Minimum height must be set to an integer value on {self.id}")
 
         # MAX #
         if self.styles.max_width and self.styles.max_width.cells:
-            self.max_width = self.styles.max_width.cells
+            max_width = self.styles.max_width.cells
         else:
-            self.max_width = self.parent.size.width
-        if self.styles.max_height and self.styles.max_height.cells:
-            self.max_height = self.styles.max_height.cells
-        else:
-            self.max_height = self.parent.size.height
+            # The max is actually None by default (unlike minimum which must be set).
+            # So if the max is not set, it will default to the parent size.
+            max_width = self.parent.size.width
 
-        min_size = Size(self.min_width, self.min_height)
-        max_size = Size(self.max_width, self.max_height)
+        if self.styles.max_height and self.styles.max_height.cells:
+            max_height = self.styles.max_height.cells
+        else:
+            max_height = self.parent.size.height
+
+        min_size = Size(min_width, min_height)
+        max_size = Size(max_width, max_height)
         return (min_size, max_size)
 
-    def _calculate_starting_position(self) -> Offset:
+    async def _calculate_starting_position(self) -> Offset:
+        """Returns the starting position of the window
+        based on the parent size and starting position arguments."""
 
         assert self.starting_width and self.starting_width.cells
         assert self.starting_height and self.starting_height.cells
@@ -766,12 +777,12 @@ class Window(Widget):
 
         start_horizontal = starting_horizontals[self.starting_horizontal]
         start_vertical = starting_verticals[self.starting_vertical]
-        self.starting_offset = Offset(start_horizontal, start_vertical)  # store this for resetting.
+        starting_offset = Offset(start_horizontal, start_vertical)  # store this for resetting.
 
         if not self.initialized:
             self.initialized = True
             self.post_message(self.Initialized(self))
-        return self.starting_offset
+        return starting_offset
 
     def _execute_remove(self) -> None:
         self.manager.unregister_window(self)
@@ -779,6 +790,8 @@ class Window(Widget):
         self.remove()
 
     def _close_animation(self, remove: bool) -> None:
+        # Note: these are called the 'animation' methods, but they actually
+        # run every single time and control the opening and closing logic.
 
         def close_animation_callback() -> None:
             if remove:
@@ -786,6 +799,7 @@ class Window(Widget):
             else:
                 self.display = False
                 self.post_message(self.Minimized(self))
+                self.manager.signal_window_state(self, False)
 
         if self.display:  # only do work if its currently displayed
             if self.animated:
@@ -807,6 +821,7 @@ class Window(Widget):
         if self.animated:
             self.styles.animate("opacity", 1.0, duration=self.animation_duration)
         self.post_message(self.Opened(self))
+        self.manager.signal_window_state(self, True)
 
     def on_mouse_down(self) -> None:
         self.bring_forward()
@@ -988,11 +1003,11 @@ class Window(Widget):
         """Alias for toggle_snap(). Toggle the window snap (lock) state."""
         self.snap_state = not self.snap_state
 
-    def reset_window(self) -> None:
+    async def reset_window(self) -> None:
         """Reset the window to its starting position and size."""
 
-        self.reset_size()
-        self.reset_position()
+        await self.reset_size()
+        await self.reset_position()
         self.snap_state = self.starting_snap_state
 
         if self.start_open:
@@ -1000,16 +1015,19 @@ class Window(Widget):
         else:
             self.open_state = False
 
-    def reset_size(self) -> None:
+    async def reset_size(self) -> None:
         """Reset the window size to its starting size."""
 
-        self.styles.width = self.starting_width
-        self.styles.height = self.starting_height
+        min_size, max_size = await self._calculate_max_min_sizes()
+        self.min_width = min_size.width
+        self.min_height = min_size.height
+        self.max_width = max_size.width
+        self.max_height = max_size.height
 
-    def reset_position(self) -> None:
+    async def reset_position(self) -> None:
         """Reset the window position to its starting position."""
 
-        self.offset = self._calculate_starting_position()
+        self.offset = await self._calculate_starting_position()
 
     def clamp_into_parent_area(self) -> None:
         """This function returns the widget into its parent area. \n

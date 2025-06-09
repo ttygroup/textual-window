@@ -44,7 +44,8 @@ anim id est laborum."""
 static_info = """Try right-clicking the buttons on the WindowBar (below) to see \
 window-specific context menus. You can also left or right-click on the WindowBar itself to \
 see a global context menu.
-Note that for transparency to work, your terminal must support it and you must have it enabled."""
+Note that for transparency to work, your terminal must support it and you must have it enabled. \
+Also note that it's known to not look great if using any light themes or system settings."""
 
 static_controls = """\
 [$accent]F1[/$accent]: Window Switcher

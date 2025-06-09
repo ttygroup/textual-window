@@ -7,24 +7,21 @@ You don't need to import from this module. You can simply do:
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
+# Python imports
 from __future__ import annotations
 from typing import Any
 
+# Textual imports
 from textual import on
 from textual import events
-
-# from textual.message import Message
 from textual.app import ComposeResult
 from textual.visual import VisualType
 from textual.containers import Horizontal, Container
 from textual.screen import ModalScreen
 from textual.widget import Widget
-
-# from textual.widgets import Static
 from textual.binding import Binding
 
-# from textual.geometry import Offset
-
+# Local imports
 from textual_window.manager import window_manager
 from textual_window.button_bases import ButtonStatic
 

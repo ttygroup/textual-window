@@ -8,41 +8,44 @@ You don't need to import from this module. You can simply do:
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
+# Python imports
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from textual_window.window import Window
     from textual.visual import VisualType
-from textual.app import ComposeResult
+    from textual.app import ComposeResult
+
+# Textual and rich imports
 from textual import on, work
 from textual.css.query import NoMatches
 from textual.geometry import Offset
 from textual.screen import ModalScreen
 from textual.containers import Horizontal, Container
 from textual import events
-
-# from textual.message import Message
 from textual.widgets import Header, Footer
 from textual.reactive import reactive
 from rich.emoji import Emoji
 
-# from textual.binding import Binding
-
+# Local imports
 from textual_window.manager import window_manager  # The manager is a singleton instance
 from textual_window.button_bases import NoSelectStatic, ButtonStatic
-
-DOCK_DIRECTION = Literal["top", "bottom"]
 
 __all__ = [
     "WindowBar",
 ]
 
+DOCK_DIRECTION = Literal["top", "bottom"]
+
 
 class WindowBarButton(NoSelectStatic):
 
+    window_state: reactive[bool] = reactive(True)
+
     def __init__(self, content: VisualType, window: Window, window_bar: WindowBar, **kwargs: Any):
         super().__init__(content=content, **kwargs)
+        self.display_text = content  # store the original content for later use
         self.window = window
         self.window_bar = window_bar
         self.click_started_on: bool = False
@@ -83,6 +86,13 @@ class WindowBarButton(NoSelectStatic):
                 window=self.window,
             )
         )
+
+    def watch_window_state(self, new_value: bool) -> None:
+        """Watch the window state and update the button's appearance accordingly."""
+        if new_value:
+            self.update(self.display_text)
+        else:  # if the window is minimized, we show a dot.
+            self.update("•" + str(self.display_text))
 
 
 class WindowBarAllButton(NoSelectStatic):
@@ -203,7 +213,7 @@ class WindowBarMenu(ModalScreen[None]):
         self.dismiss(None)
 
     @on(ButtonStatic.Pressed)
-    def button_pressed(self, event: ButtonStatic.Pressed) -> None:
+    async def button_pressed(self, event: ButtonStatic.Pressed) -> None:
         # Normally I use the CSS selectors. But in this case, it's actually
         # cleaner to just use nested if statements. You can see why.
 
@@ -216,7 +226,7 @@ class WindowBarMenu(ModalScreen[None]):
                 else:
                     self.window.minimize()
             elif event.button.id == "reset":
-                self.window.reset_window()
+                await self.window.reset_window()
         elif self.window_bar:
             if event.button.id == "open_all":
                 self.window_bar.manager.open_all_windows()
@@ -229,9 +239,9 @@ class WindowBarMenu(ModalScreen[None]):
             elif event.button.id == "unsnap_all":
                 self.window_bar.manager.unsnap_all_windows()
             elif event.button.id == "reset_all":
-                self.window_bar.manager.reset_all_windows()
+                await self.window_bar.manager.reset_all_windows()
             elif event.button.id == "toggle_dock":
-                self.window_bar.toggle_dock()
+                self.window_bar.toggle_dock_location()
 
 
 class WindowBar(Horizontal):
@@ -243,7 +253,7 @@ class WindowBar(Horizontal):
     }   
     WindowBarButton {
         height: 1; width: auto;
-        padding: 0 2;
+        padding: 0 1;
         &:hover { background: $panel-lighten-1; }
         &.pressed { background: $primary; color: $text; }
         &.right_pressed { background: $accent-darken-3; color: $text; }
@@ -369,6 +379,7 @@ class WindowBar(Horizontal):
         # Called by the WindowManager when a new window is added.
         # It will create a button for the window and add it to the WindowBar.
         # There is no need to call this manually.
+
         display_name = (window.icon + " " + window.name) if window.icon else window.name
 
         await self.mount(
@@ -389,15 +400,28 @@ class WindowBar(Horizontal):
 
         self.query_one(f"#{window.id}_button").remove()
 
+    def update_window_button_state(self, window: Window, state: bool) -> None:
+        # called by the WindowManager when a window is minimized or opened.
+        # There is no need to call this manually.
+
+        button = self.query_one(f"#{window.id}_button", WindowBarButton)
+        if state:
+            button.window_state = True
+        else:  # window was minimized:
+            button.window_state = False
+
     ##################
     # ~ Public API ~ #
     ##################
 
-    def set_dock(self, dock: DOCK_DIRECTION = "bottom") -> None:
+    def set_dock_location(self, dock: DOCK_DIRECTION = "bottom") -> None:
+        """Set the direction to dock the bar. Can be either 'top' or 'bottom'."""
         self.dock = dock
 
-    def toggle_dock(self) -> None:
-        """Toggle if the WindowBar is docked at the top or bottom of the screen."""
+    def toggle_dock_location(self) -> None:
+        """Toggle if the WindowBar is docked at the top or bottom of the screen.
+        Similar to `set_dock_location`, but it just flips whatever the current dock is
+        instead of setting it to a specific value."""
 
         if self.dock == "top":
             self.dock = "bottom"
@@ -405,4 +429,5 @@ class WindowBar(Horizontal):
             self.dock = "top"
 
     def toggle_bar(self) -> None:
+        """Toggle the visibility of the WindowBar."""
         self.display = not self.display

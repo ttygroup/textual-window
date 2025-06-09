@@ -12,6 +12,12 @@
 - [ ] Turn allow_resize into a reactive variable.
 - [ ] Add a way to change the mouse controls, something other than right-clicking
 - [ ] Add a Modal window option (Modal screen + window combo)
+- [ ] Add more validation in the window constructor
+
+## Finished (0.3.2)
+
+- [X] Added new dot on windowbar buttons that shows which windows are currently minimized
+- [X] Added a new "Desktop" button in the window switcher which will minimize all windows
 
 ## Finished (0.3.0)
 

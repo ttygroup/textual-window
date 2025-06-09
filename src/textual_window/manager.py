@@ -12,6 +12,7 @@ to all of them."""
 # ~ Linting - Ruff
 # ~ Formatting - Black - max 110 characters / line
 
+# Python imports
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from textual_window.window import Window
     from textual_window.windowbar import WindowBar
 
+# Textual imports
 from textual.dom import DOMNode
 
 __all__ = [
@@ -53,15 +55,29 @@ class WindowManager(DOMNode):
         self.windowbar: WindowBar | None = None
         self.recent_focus_order: list[Window] = []
 
+        # This keeps track of the windows that are launched with the app as they are ready.
+        self.checked_in_starting_windows = 0
+        self.all_starting_windows_ready = False
+
         # These 3 variables are just used to keep track of the closing process.
         # All 3 get reset every time the process finishes.
         self.closing_in_progress = False
         self.num_of_temporary_windows = 0
         self.checked_in_closing_windows = 0
 
-    def window_ready(self, window: Window) -> None:
+    async def window_ready(self, window: Window) -> bool | None:
+
+        # if not self.all_starting_windows_ready:
+        #     self.checked_in_starting_windows += 1
+        #     if self.checked_in_starting_windows == len(self.windows):
+        #         self.all_starting_windows_ready = True
+
         if self.windowbar:
-            self.windowbar.add_window_button(window)  # type: ignore[unused-ignore]
+            button_worker = self.windowbar.add_window_button(window)  # type: ignore[unused-ignore]
+            await button_worker.wait()
+            return True
+        else:
+            return None
 
     def register_windowbar(self, windowbar: WindowBar) -> None:
         """Register the windowbar with the manager. This is done automatically when the
@@ -122,16 +138,6 @@ class WindowManager(DOMNode):
                 self.num_of_temporary_windows = 0
                 self.call_after_refresh(lambda: setattr(self, "closing_in_progress", False))
 
-    def get_windows_as_dict(self) -> dict[str, Window]:
-        """Get a dictionary of all windows."""
-        return self.windows
-
-    def get_windows_as_list(self) -> list[Window]:
-        """Get a list of all windows."""
-
-        windows = [window for window in self.windows.values()]
-        return windows
-
     def change_focus_order(self, window: Window) -> None:
         """This is used by the WindowSwitcher to display the windows
         in the order they were focused."""
@@ -145,6 +151,30 @@ class WindowManager(DOMNode):
                     "No windows in the recent focus order. "
                     "This should not happen. Please report this issue."
                 )
+
+    def signal_window_state(self, window: Window, state: bool) -> None:
+        """This is used by the WindowBar to update the window button state when a window is minimized."""
+        if self.windowbar:
+            self.windowbar.update_window_button_state(window, state)
+
+    def debug(self) -> None:
+        """Log self.windows and self.app on the WindowManager to console."""
+        self.log.debug(self.windows)
+        self.log.debug(f"Layers: \n{self.app.screen.styles.layers}")
+
+    def get_windows_as_dict(self) -> dict[str, Window]:
+        """Get a dictionary of all windows."""
+        return self.windows
+
+    def get_windows_as_list(self) -> list[Window]:
+        """Get a list of all windows."""
+
+        windows = [window for window in self.windows.values()]
+        return windows
+
+    #############################
+    # ~ Actions for all windows ~
+    #############################
 
     def open_all_windows(self) -> None:
         """Open all windows."""
@@ -188,30 +218,10 @@ class WindowManager(DOMNode):
         for window in self.windows.values():
             window.snap_state = False
 
-    def reset_all_windows(self) -> None:
+    async def reset_all_windows(self) -> None:
         """Reset all windows to their starting position and size."""
         for window in self.windows.values():
-            window.reset_window()
-
-    def reset_all_window_positions(self) -> None:
-        """Reset all windows to their starting position."""
-        for window in self.windows.values():
-            window.reset_position()
-
-    def reset_all_windows_size(self) -> None:
-        """Reset all windows to their starting size."""
-        for window in self.windows.values():
-            window.reset_size()
-
-    def calculate_all_max_sizes(self) -> None:
-        """Calculate the maximum size of all windows."""
-        for window in self.windows.values():
-            window._calculate_max_min_sizes()  # type: ignore[unused-ignore]
-
-    def debug(self) -> None:
-        """Log self.windows and self.app on the WindowManager to console."""
-        self.log.debug(self.windows)
-        self.log.debug(f"Layers: \n{self.app.screen.styles.layers}")
+            await window.reset_window()
 
 
 window_manager = WindowManager()  # ~ <-- Create a window manager instance.

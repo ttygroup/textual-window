@@ -1,5 +1,14 @@
 # Textual-Window Changelog
 
+## 0.3.2
+
+- New feature: added a dot on WindowBar buttons to mark which windows are currently minimized.
+- Breaking change - `reset_window`, `reset_size`, and `reset_position` in the Window class were made into async functions and now must be awaited. Likewise the correspoding `reset_all_windows` in the manager was also made async.
+- Breaking change - `reset_all_window_positions` and `reset_all_windows_size` methods in the manager were removed, as I think they're just unnecessary (not used anywhere in the library).
+- Breaking change - `set_dock` and `toggle_dock` in window manager renamed to `set_dock_location` and `toggle_dock_location` respectively.
+- `_dom_ready` in Window class was made into a normal (non-threaded) worker.
+- `_calculate_max_min_sizes` and `_calculate_starting_position` were made into async functions (They do not yield themselves but now the `_dom_ready` worker can await them upon initialization, which is a very mild benefit.)
+
 ## 0.3.1
 
 - Added a 'Desktop' button in the window switcher which will minimize all windows.

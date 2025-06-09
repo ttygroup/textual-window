@@ -1,6 +1,6 @@
 [project]
 name = "textual-window"
-version = "0.3.1"
+version = "0.3.2"
 description = "A Textual widget for a floating, draggable window and included window bar/manager system."
 readme = "README.md"
 requires-python = ">=3.10"
