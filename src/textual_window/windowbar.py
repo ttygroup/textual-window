@@ -22,6 +22,7 @@ from textual import on, work
 from textual.css.query import NoMatches
 from textual.geometry import Offset
 from textual.screen import ModalScreen
+from textual.message import Message
 from textual.containers import Horizontal, Container
 from textual import events
 from textual.widgets import Header, Footer
@@ -265,6 +266,13 @@ class WindowBar(Horizontal):
     }    
     """
 
+    class DockToggled(Message):
+        """Message sent when the dock location is toggled."""
+
+        def __init__(self, dock: str) -> None:
+            super().__init__()
+            self.dock = dock
+
     manager = window_manager
     unnamed_window_counter: int = 1
 
@@ -344,6 +352,9 @@ class WindowBar(Horizontal):
 
     def watch_dock(self, new_value: str) -> None:
 
+        if new_value not in ["top", "bottom"]:
+            raise ValueError("Dock must be either 'top' or 'bottom'")
+
         try:
             self.app.query_one(Header)
         except NoMatches:
@@ -364,15 +375,15 @@ class WindowBar(Horizontal):
                 self.styles.height = 2
             else:
                 self.styles.height = 1
-        elif new_value == "bottom":
+        else:  # new_value == "bottom"
             self.styles.dock = "bottom"
             self.styles.align = ("center", "top")
             if app_has_footer:
                 self.styles.height = 2
             else:
                 self.styles.height = 1
-        else:
-            raise ValueError("Dock must be either 'top' or 'bottom'")
+
+        self.post_message(WindowBar.DockToggled(dock=new_value))
 
     @work(group="windowbar")
     async def add_window_button(self, window: Window) -> None:

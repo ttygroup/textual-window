@@ -1,5 +1,19 @@
 # Textual-Window Changelog
 
+## (2025-06-14) 0.3.5
+
+- Added a `DockToggled` message to the Windowbar which will emit a message whenever the windowbar has the dock location toggled. Can handle with `@on(WindowBar.DockToggled)`.
+
+## (2025-06-11) 0.3.4
+
+- Replaced default for `menu_options` argument to be None instead of empty dictionary. Forgot that you can't use a mutable value as a default in a method, it would result in unexpected behavior.
+
+## (2025-06-10) 0.3.3
+
+- New feature: Windows now maintain their highlighting focus color when their children (contents in the window) are being interacted with.
+- Breaking change - `show_maximize_button` argument for Window class renamed to `allow_maximize` to be more similar to `allow_resize`.
+- Refactored some logic so focusing now brings windows forward according to `always_bring_forward` instead of it being a separate call.
+
 ## 0.3.2
 
 - New feature: added a dot on WindowBar buttons to mark which windows are currently minimized.

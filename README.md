@@ -9,7 +9,7 @@
 
 Textual-Window is an extension library for [Textual](https://github.com/Textualize/textual).
 
-It provides a Window widget, along with an included WindowBar and WindowSwitcher, that makes it extremely
+It provides a Window widget, along with an included WindowBar and WindowSwitcher, that makes it
 easy to create a desktop GUI-like experience inside of a TUI built with Textual.
 
 Window widgets are floating, draggable, resizable, snappable, closable, and you can even cycle through them in a manner similar to alt-tab. It's like a mini desktop inside of your terminal. (Is it ridiculous? Yes, yes it is. But is it awesome? Also yes.)
@@ -41,18 +41,17 @@ uvx textual-window
 ```
 
 ```sh
-pipx textual-window
+pipx run textual-window
 ```
 
 ## Documentation
 
 ### [Click here for documentation](https://edward-jazzhands.github.io/libraries/textual-window/)
 
-## Questions, issues, suggestions?
-
-Feel free to post an issue.
-
 ## Video
 
 https://github.com/user-attachments/assets/3d0e21a6-bb95-4adf-afc9-6bb3792215a5
 
+## Questions, issues, suggestions?
+
+Feel free to post an issue.

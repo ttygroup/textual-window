@@ -145,7 +145,6 @@ class WindowSwitcherScreen(ModalScreen[None]):
                         window.minimize()
                     else:
                         window.open_window()
-                        window.bring_forward()
                         window.focus()
                     break
                 elif window_id == "desktop":

@@ -132,7 +132,7 @@ class CloseButton(NoSelectStatic):
         if event.button == 1:  # left button
             self.click_started_on = True
             self.add_class("pressed")
-            self.window.bring_forward()
+            self.window.focus()
 
     def on_mouse_up(self) -> None:
 
@@ -166,7 +166,7 @@ class HamburgerButton(NoSelectStatic):
         if event.button == 1:  # left button
             self.click_started_on = True
             self.add_class("pressed")
-            self.window.bring_forward()
+            self.window.focus()
 
     async def on_mouse_up(self, event: events.MouseUp) -> None:
 
@@ -207,7 +207,7 @@ class MaximizeButton(NoSelectStatic):
         if event.button == 1:  # left button
             self.click_started_on = True
             self.add_class("pressed")
-            self.window.bring_forward()
+            self.window.focus()
 
     def on_mouse_up(self) -> None:
 
@@ -245,7 +245,7 @@ class MinimizeButton(NoSelectStatic):
         if event.button == 1:  # left button
             self.click_started_on = True
             self.add_class("pressed")
-            self.window.bring_forward()
+            self.window.focus()
 
     def on_mouse_up(self) -> None:
 
@@ -313,7 +313,7 @@ class Resizer(NoSelectStatic):
 
             self.add_class("pressed")
             self.capture_mouse()
-            self.window.bring_forward()
+            self.window.focus()
 
     def on_mouse_up(self) -> None:
 
@@ -347,7 +347,7 @@ class TitleBar(NoSelectStatic):
         if event.button == 1:  # left button
             self.add_class("pressed")
             self.capture_mouse()
-            self.window.bring_forward()
+            self.window.focus()
 
     def on_mouse_up(self) -> None:
 
@@ -361,7 +361,7 @@ class TopBar(Horizontal):
         self,  # but it gives better type hinting and allows for more advanced
         window: Window,  # dependeny injection of the window down to children widgets.
         window_title: str,
-        options: dict[str, Callable[..., Optional[Any]]],
+        options: dict[str, Callable[..., Optional[Any]]] | None,
     ):
         super().__init__()
         self.window = window
@@ -376,7 +376,7 @@ class TopBar(Horizontal):
                 BUTTON_SYMBOLS["hamburger"], window=self.window, options=self.options, classes="windowbutton"
             )
         yield MinimizeButton(BUTTON_SYMBOLS["minimize"], window=self.window, classes="windowbutton")
-        if self.window.show_maximize_button:
+        if self.window.allow_maximize_window:
             self.maximize_button = MaximizeButton(
                 BUTTON_SYMBOLS["maximize"], window=self.window, classes="windowbutton"
             )
@@ -426,6 +426,7 @@ class Window(Widget):
     TopBar, BottomBar {
         width: 1fr; height: 1; max-height: 1;
         background: $panel-lighten-1; 
+        &.focused { background: $secondary; }     
     }   
     TitleBar {
         width: 1fr; height: 1; padding: 0 1; 
@@ -454,6 +455,10 @@ class Window(Widget):
         border-bottom: none;
         padding: 1 0 1 1; 
         align: center top;
+        &.focused {
+            border-left: wide $secondary;
+            border-right: wide $secondary;
+        }        
     }    
     """
 
@@ -522,8 +527,8 @@ class Window(Widget):
         start_open: bool = False,
         start_snapped: bool = True,
         allow_resize: bool = True,
-        show_maximize_button: bool = False,
-        menu_options: dict[str, Callable[..., Optional[Any]]] = {},
+        allow_maximize: bool = False,
+        menu_options: dict[str, Callable[..., Optional[Any]]] | None = None,
         animated: bool = True,
         show_title: bool = True,
         disabled: bool = False,
@@ -553,19 +558,19 @@ class Window(Widget):
                 ID for some reason, you can set this to whatever display name you'd like.
             starting_horizontal: The starting horizontal position of the window.
             starting_vertical: The starting vertical position of the window.
-            start_open (bool): Whether the window should start open or closed.
-            start_snapped (bool): Whether the window should start snapped (locked) within the parent area.
-            allow_resize (bool): Whether the window should be resizable.
-            show_maximize_button (bool): Whether to show the maximize button on the top bar.
-            menu_options (dict): A dictionary of options to show in a hamburger menu.
+            start_open: Whether the window should start open or closed.
+            start_snapped: Whether the window should start snapped (locked) within the parent area.
+            allow_resize: Whether the window should be resizable.
+            allow_maximize: Whether to show the maximize button on the top bar.
+            menu_options: A dictionary of options to show in a hamburger menu.
                 The hamburger menu will be shown automatically if you pass in any options.
                 The key is the name of the option as it will be displayed in the menu.
                 The value is a callable that will be called when the option is selected.
                 #! add note about functools partial?
-            animated (bool): Whether the window should be animated.
+            animated: Whether the window should be animated.
                 This will add a fade in/out effect when opening/closing the window. You can modify
                 the `animation_duration` attribute to change the duration of the animation.
-            show_title (bool): Whether to show the title bar or not.
+            show_title: Whether to show the title bar or not.
             disabled: Whether the widget is disabled or not.
         """
 
@@ -594,9 +599,9 @@ class Window(Widget):
         self.starting_horizontal = starting_horizontal
         self.starting_vertical = starting_vertical
         self.allow_resize = allow_resize
-        self.animated = animated
-        self.show_maximize_button = show_maximize_button
+        self.allow_maximize_window = allow_maximize
         self.menu_options = menu_options
+        self.animated = animated
         self.show_title = show_title
         self.icon = icon
 
@@ -823,13 +828,16 @@ class Window(Widget):
         self.post_message(self.Opened(self))
         self.manager.signal_window_state(self, True)
 
-    def on_mouse_down(self) -> None:
+    async def _on_mouse_down(self, event: events.MouseDown) -> None:
+        await super()._on_mouse_down(event)
         self.bring_forward()
 
     #! OVERRIDE
     def _on_focus(self, event: events.Focus) -> None:
         self.manager.change_focus_order(self)
         self.manager.last_focused_window = self  # Update the focused window in the manager.
+        if self.auto_bring_forward:
+            self.bring_forward()
         super()._on_focus(event)
 
     #! OVERRIDE
@@ -863,6 +871,24 @@ class Window(Widget):
         This property is overridden from DOMnode because `name` cannot be none in the Window class."""
         return self._name
 
+    # These two event handlers below will ensure that the window maintains its
+    # focused style when its descendants/children inside the window are focused.
+    # So in other words, the window will stay highlighted even when you're actually focused
+    # on the window's children/interior contents.
+    @on(events.DescendantFocus)
+    def descendant_focused(self, event: events.DescendantFocus) -> None:
+
+        self.query_one(TopBar).add_class("focused")
+        self.query_one(BottomBar).add_class("focused")
+        self.query_one("#content_pane").add_class("focused")
+
+    @on(events.DescendantBlur)
+    def descendant_blurred(self, event: events.DescendantBlur) -> None:
+
+        self.query_one(TopBar).remove_class("focused")
+        self.query_one(BottomBar).remove_class("focused")
+        self.query_one("#content_pane").remove_class("focused")
+
     ####################
     # ~ WATCH METHODS ~#
     ####################
@@ -876,17 +902,11 @@ class Window(Widget):
 
         if value:
             self._open_animation()
-            if self.auto_bring_forward:
-                self.bring_forward()
             if self.auto_focus:
                 self.focus()
-            # self.post_message(self.Opened(self))
         else:
             self._close_animation(remove=False)
-            children = self.query(Widget)
-            for child in children:  #           Anything focused in the window must be unfocused.
-                child.blur()  #                 self.display handles this well, but this is
-            # self.post_message(self.Minimized(self))  #  a safety net to prevent any issues.
+            self.query(Widget).blur()
 
     def watch_maximize_state(self, value: bool) -> None:
 
@@ -940,6 +960,20 @@ class Window(Widget):
     ##################
     # ~ Public API ~ #
     ##################
+
+    # def set_focus_style(self, enabled: bool) -> None:
+    #     """This method can be used to force the window to be styled as though
+    #     it is focused even when it is not. This is useful if you want the window
+    #     to appear to be focused when the children inside it are focused."""
+
+    #     if enabled:
+    #         self.query_one(TopBar).add_class("focused")
+    #         self.query_one(BottomBar).add_class("focused")
+    #         self.query_one("#content_pane").add_class("focused")
+    #     else:
+    #         self.query_one(TopBar).remove_class("focused")
+    #         self.query_one(BottomBar).remove_class("focused")
+    #         self.query_one("#content_pane").remove_class("focused")
 
     def remove_window(self) -> None:
         """This will remove the window from the DOM and the Window Bar."""

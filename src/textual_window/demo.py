@@ -145,7 +145,7 @@ class WindowDemo(App[None]):
                 icon="✰",
                 starting_horizontal="right",
                 starting_vertical="uppermiddle",
-                show_maximize_button=True,
+                allow_maximize=True,
                 menu_options=window1_menu_options,
             )
 
@@ -231,17 +231,6 @@ class WindowDemo(App[None]):
             main_container.styles.animate("opacity", value=1.0, duration=0.5)  # Chad loading screen
             self.app_initialized = True
 
-    ####################
-    # ~ Other Events ~ #
-    ####################
-
-    @on(Button.Pressed, "#button1")
-    def button1_pressed(self) -> None:
-
-        textarea = self.query_one("#input1", TextArea)
-        self.rich_log.write(textarea.text)
-        textarea.text = ""
-
     @on(Button.Pressed, "#add_window")
     def add_window(self) -> None:
 
@@ -254,12 +243,32 @@ class WindowDemo(App[None]):
             id=f"window_{self.window_counter}",
             icon=random.choice(icons),
             start_open=True,
-            show_maximize_button=True,
+            allow_maximize=True,
             starting_horizontal=random.choice(get_args(STARTING_HORIZONTAL)),
             starting_vertical=random.choice(get_args(STARTING_VERTICAL)),
         )
         self.query_one("#main_container").mount(new_window)
         self.window_counter += 1
+
+    @on(WindowBar.DockToggled)
+    def windowbar_dock_toggled(self, event: WindowBar.DockToggled) -> None:
+
+        # This is an example of how to trigger something else when the
+        # windowbar has the dock location toggled between top and bottom.
+        # (left and right not currently supported)
+
+        self.rich_log.write(f"WindowBar docked at {event.dock}.")
+
+    ####################
+    # ~ Other Events ~ #
+    ####################
+
+    @on(Button.Pressed, "#button1")
+    def button1_pressed(self) -> None:
+
+        textarea = self.query_one("#input1", TextArea)
+        self.rich_log.write(textarea.text)
+        textarea.text = ""
 
     @on(Button.Pressed, "#hide_info")
     def hide_info(self) -> None:
