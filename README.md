@@ -1,4 +1,7 @@
-![textual-window-banner](https://github.com/user-attachments/assets/d8c78455-53e9-4d12-90ab-e9d3d2ade8fa)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/800de9df-be91-45ff-87eb-abcc1c19c5a9">
+  <img src="https://github.com/user-attachments/assets/06b16b87-a37d-405c-b9fb-44ea2d89de5c">
+</picture>
 
 # Textual-Window
 
@@ -50,7 +53,7 @@ pipx run textual-window
 
 ## Video
 
-https://github.com/user-attachments/assets/3d0e21a6-bb95-4adf-afc9-6bb3792215a5
+https://github.com/user-attachments/assets/34aae8b4-c5ff-4561-a596-4bb15b710747
 
 ## Questions, issues, suggestions?
 
