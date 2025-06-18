@@ -53,7 +53,7 @@ pipx run textual-window
 
 ## Video
 
-https://github.com/user-attachments/assets/34aae8b4-c5ff-4561-a596-4bb15b710747
+https://github.com/user-attachments/assets/2bf5f4d9-f289-4e7f-b9ae-e91fd34c1ce3
 
 ## Questions, issues, suggestions?
 
