@@ -19,9 +19,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from textual_window.window import Window
     from textual_window.windowbar import WindowBar
+    from textual_window.switcher import WindowSwitcherScreen
+    import rich.repr
 
 # Textual imports
 from textual.dom import DOMNode
+# from rich.text import Text
 
 __all__ = [
     "window_manager",
@@ -49,36 +52,49 @@ class WindowManager(DOMNode):
     def __init__(self) -> None:
         super().__init__()
 
-        #! self.windows could possibly be reactive?
-        self.windows: dict[str, Window] = {}  # Dictionary to store windows by their ID
-        self.last_focused_window: Window | None = None
-        self.windowbar: WindowBar | None = None
-        self.recent_focus_order: list[Window] = []
-
-        # This keeps track of the windows that are launched with the app as they are ready.
-        self.checked_in_starting_windows = 0
-        self.all_starting_windows_ready = False
+        #! self._windows could possibly be reactive?
+        self._windows: dict[str, Window] = {}  # Dictionary to store windows by their ID
+        self._last_focused_window: Window | None = None
+        self._windowbar: WindowBar | None = None
+        self._recent_focus_order: list[Window] = []
 
         # These 3 variables are just used to keep track of the closing process.
         # All 3 get reset every time the process finishes.
-        self.closing_in_progress = False
-        self.num_of_temporary_windows = 0
-        self.checked_in_closing_windows = 0
+        self._closing_in_progress = False
+        self._num_of_temporary_windows = 0
+        self._checked_in_closing_windows = 0
 
-    async def window_ready(self, window: Window) -> bool | None:
+    ##################
+    # ~ Properties ~ #
+    ##################
 
-        # if not self.all_starting_windows_ready:
-        #     self.checked_in_starting_windows += 1
-        #     if self.checked_in_starting_windows == len(self.windows):
-        #         self.all_starting_windows_ready = True
+    @property
+    def windows(self) -> dict[str, Window]:
+        """Get the dictionary of all windows."""
+        return self._windows
+    
+    @property
+    def windowbar(self) -> WindowBar | None:
+        """Get the windowbar instance."""
+        return self._windowbar
+    
+    used_by: type[WindowSwitcherScreen]  # methods: [compose]
+    @property
+    def recent_focus_order(self) -> list[Window]:
+        """Get the list of windows in the order they were most recently focused."""
+        return self._recent_focus_order
+    
+    used_by: type[WindowSwitcherScreen]  # methods: [action_confirm]
+    @property
+    def last_focused_window(self) -> Window | None:
+        """Get the last focused window."""
+        return self._last_focused_window    
+    
+    #########################
+    # ~ WindowBar Methods ~ #
+    #########################
 
-        if self.windowbar:
-            button_worker = self.windowbar.add_window_button(window)  # type: ignore[unused-ignore]
-            await button_worker.wait()
-            return True
-        else:
-            return None
-
+    called_by_2: type[WindowBar]  # methods: [__init__]
     def register_windowbar(self, windowbar: WindowBar) -> None:
         """Register the windowbar with the manager. This is done automatically when the
         windowbar is mounted. You shouldn't need to call this manually.
@@ -88,99 +104,123 @@ class WindowManager(DOMNode):
         Multiple windowbars with different windows on them is an interesting idea, but it's not
         currently supported."""
 
-        if not self.windowbar:
+        if not self._windowbar:
             self.log.debug("func register_windowbar: Registering windowbar with the manager.")
-            self.windowbar = windowbar
+            self._windowbar = windowbar
         else:
             raise RuntimeError(
                 "There is already a WindowBar registered with the WindowManager. "
                 "You cannot have more than one WindowBar in the app."
             )
+        
+    called_by: type[Window]  # methods: [_dom_ready, _open_animation, _close_animation]
+    def signal_window_state(self, window: Window, state: bool) -> None:
+        """This method triggers the WindowBar to update the window's button on the bar
+        when a window is minimized or maximized to show its current state (adds or
+        removes the dot.)"""
+        if self._windowbar:
+            self._windowbar.update_window_button_state(window, state)        
 
+    ######################
+    # ~ Window Methods ~ #
+    ######################
+
+    called_by: type[Window]  # methods: [_dom_ready]
+    async def window_ready(self, window: Window) -> bool | None:
+
+        if self._windowbar:
+            button_worker = self._windowbar.add_window_button(window)  # type: ignore[unused-ignore]
+            await button_worker.wait()
+            return True
+        else:
+            return None
+
+    called_by: type[Window]  # methods: [__init__]
     def register_window(self, window: Window) -> None:
         """Used by windows to register with the manager.
         Windows do this automatically when they are mounted. There should not be any
         need to call this method manually."""
 
         if window.id:
-            self.windows[window.id] = window
+            self._windows[window.id] = window
         else:
             raise ValueError(
                 "Window ID is not set. "
                 "Please set the ID of the window before registering it with the manager."
             )
-        self.recent_focus_order.append(window)
+        self._recent_focus_order.append(window)
 
+    called_by: type[Window]  # methods: [_execute_remove]
     def unregister_window(self, window: Window) -> None:
         """Used by windows to unregister with the manager.
         Windows do this automatically when they are unmounted. There should not be any
         need to call this method manually."""
 
-        if window.id in self.windows:
-            self.windows.pop(window.id)
+        if window.id in self._windows:
+            self._windows.pop(window.id)
             self.log.debug(f"func unregister_window: Unregistered {window.id} from the manager.")
         else:
             raise ValueError(
                 "Window ID not found in the manager. "
                 "Please make sure the window is registered with the manager before unregistering it."
             )
-        self.recent_focus_order.remove(window)
+        self._recent_focus_order.remove(window)
 
-        if self.windowbar:
-            self.windowbar.remove_window_button(window)  # type: ignore[unused-ignore]
+        if self._windowbar:
+            self._windowbar.remove_window_button(window)  # type: ignore[unused-ignore]
 
-        if self.closing_in_progress:
+        if self._closing_in_progress:
             if window.window_mode == "temporary":  # <- this shouldn't be necessary.
-                self.checked_in_closing_windows += 1
+                self._checked_in_closing_windows += 1
 
-            if self.checked_in_closing_windows == self.num_of_temporary_windows:
-                self.checked_in_closing_windows = 0
-                self.num_of_temporary_windows = 0
+            if self._checked_in_closing_windows == self._num_of_temporary_windows:
+                self._checked_in_closing_windows = 0
+                self._num_of_temporary_windows = 0
                 self.call_after_refresh(lambda: setattr(self, "closing_in_progress", False))
-
+    
+    called_by: type[Window]  # methods: [_on_focus]
     def change_focus_order(self, window: Window) -> None:
-        """This is used by the WindowSwitcher to display the windows
-        in the order they were focused."""
+        """recent_focus_order attribute is read by the WindowSwitcher to display
+         the windows in the order they were most recently focused."""
 
-        if self.recent_focus_order:
-            self.recent_focus_order.remove(window)
-            self.recent_focus_order.insert(0, window)
+        if self._recent_focus_order:
+            self._recent_focus_order.remove(window)
+            self._recent_focus_order.insert(0, window)
         else:
-            if not self.closing_in_progress:
+            if not self._closing_in_progress:
                 raise RuntimeError(
                     "No windows in the recent focus order. "
                     "This should not happen. Please report this issue."
                 )
+        self._last_focused_window = window
 
-    def signal_window_state(self, window: Window, state: bool) -> None:
-        """This is used by the WindowBar to update the window button state when a window is minimized."""
-        if self.windowbar:
-            self.windowbar.update_window_button_state(window, state)
+    def __rich_repr__(self) -> rich.repr.Result:
+        yield "windows", self._windows
+        yield "layers", self.app.screen.styles.layers
 
-    def debug(self) -> None:
-        """Log self.windows and self.app on the WindowManager to console."""
-        self.log.debug(self.windows)
-        self.log.debug(f"Layers: \n{self.app.screen.styles.layers}")
-
+    called_by_3: type[WindowSwitcherScreen]  # methods: [__init__]
     def get_windows_as_dict(self) -> dict[str, Window]:
         """Get a dictionary of all windows."""
-        return self.windows
+        return self._windows
 
+    called_by_2: type[WindowBar]  # methods: [_on_resize]
     def get_windows_as_list(self) -> list[Window]:
         """Get a list of all windows."""
 
-        windows = [window for window in self.windows.values()]
+        windows = [window for window in self._windows.values()]
         return windows
 
     #############################
     # ~ Actions for all windows ~
     #############################
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     def open_all_windows(self) -> None:
         """Open all windows."""
-        for window in self.windows.values():
+        for window in self._windows.values():
             window.open_state = True
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     def close_all_windows(self) -> None:
         """Close all windows. This will close all temporary windows and
         minimize all permanent windows."""
@@ -188,39 +228,43 @@ class WindowManager(DOMNode):
         # First we need to count how many temporary windows there are.
         # It counts them as they unregister so it knows when it can set
         # closing_in_progress back to False.
-        self.num_of_temporary_windows = len(
-            [w for w in self.windows.values() if w.window_mode == "temporary"]
+        self._num_of_temporary_windows = len(
+            [w for w in self._windows.values() if w.window_mode == "temporary"]
         )
 
         # This makes a copy because otherwise it would get smaller
         # while iterating over it.
-        windows_copy = self.windows.copy()
+        windows_copy = self._windows.copy()
 
-        self.closing_in_progress = True
+        self._closing_in_progress = True
         for window in windows_copy.values():
             if window.window_mode == "temporary":
                 window.remove_window()
             else:
                 window.open_state = False
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     def minimize_all_windows(self) -> None:
         """Minimize all windows."""
-        for window in self.windows.values():
+        for window in self._windows.values():
             window.open_state = False
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     def snap_all_windows(self) -> None:
         """Snap/Lock all windows."""
-        for window in self.windows.values():
+        for window in self._windows.values():
             window.snap_state = True
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     def unsnap_all_windows(self) -> None:
         """Unsnap/Unlock all windows."""
-        for window in self.windows.values():
+        for window in self._windows.values():
             window.snap_state = False
 
+    called_by_2: type[WindowBar]  # methods: [button_pressed]
     async def reset_all_windows(self) -> None:
         """Reset all windows to their starting position and size."""
-        for window in self.windows.values():
+        for window in self._windows.values():
             await window.reset_window()
 
 
