@@ -5,7 +5,6 @@
 - [ ] Build system for windowbar to manage overflowing / many windows.
 - [ ] Turn Window switcher into a grid so it grows vertically (connected to above).
 - [ ] Add option to make the WindowBar floating.
-- [ ] Add fullscreen mode that pushes a screen.
 - [ ] Implement way to deal with relative sizes.  
 - [ ] Add switch between snapping to parent container and snapping to screen.  
 - [ ] Add ability to disable toggling the snap.
@@ -13,6 +12,10 @@
 - [ ] Add a way to change the mouse controls, something other than right-clicking
 - [ ] Add a Modal window option (Modal screen + window combo)
 - [ ] Add more validation in the window constructor
+
+## Finished (0.4.0)
+
+- [X] Add a new mounting callback registry and mount_window method to the Window Manager.
 
 ## Finished (0.3.2)
 

@@ -5,10 +5,12 @@
 
 # Textual-Window
 
-![badge](https://img.shields.io/badge/linted-Ruff-blue?style=for-the-badge&logo=ruff)
-![badge](https://img.shields.io/badge/formatted-black-black?style=for-the-badge)
-![badge](https://img.shields.io/badge/type_checked-MyPy-blue?style=for-the-badge&logo=python)
-![badge](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
+![badge](https://img.shields.io/badge/Linted-Ruff-blue&logo=ruff)
+![badge](https://img.shields.io/badge/Formatted-Black-black)
+![badge](https://img.shields.io/badge/Type_checked-MyPy-blue&logo=python)
+![badge](https://img.shields.io/badge/Type_checked-Pyright-blue&logo=python)
+![badge](https://img.shields.io/badge/License-MIT-blue)
+[![Framework: Textual](https://img.shields.io/badge/framework-Textual-5967FF?logo=python)](https://www.textualize.io/)
 
 Textual-Window is an extension library for [Textual](https://github.com/Textualize/textual).
 
