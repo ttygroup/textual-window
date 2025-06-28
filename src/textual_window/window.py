@@ -834,8 +834,7 @@ class Window(Widget):
 
     #! OVERRIDE
     def _on_focus(self, event: events.Focus) -> None:
-        self.manager.change_focus_order(self)
-        self.manager.last_focused_window = self  # Update the focused window in the manager.
+        self.manager.change_window_focus_order(self)
         if self.auto_bring_forward:
             self.bring_forward()
         super()._on_focus(event)

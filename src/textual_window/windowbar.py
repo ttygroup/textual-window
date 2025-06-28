@@ -335,7 +335,7 @@ class WindowBar(Horizontal):
             self.dock = self.dock  # Trigger the watch_dock method
 
     def _on_unmount(self) -> None:
-        self.manager.windowbar = None
+        self.manager.unregister_windowbar()
 
     def _on_resize(self) -> None:
         # Every time the bar is opened/shut or resized, it will automatically

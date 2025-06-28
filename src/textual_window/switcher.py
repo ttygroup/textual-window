@@ -91,8 +91,8 @@ class WindowSwitcherScreen(ModalScreen[None]):
 
         with Container(id="menu_container"):
             with Horizontal(id="menu_inner"):
-                if self.manager.recent_focus_order:
-                    for window in self.manager.recent_focus_order:
+                if self.manager.recent_window_focus_order:
+                    for window in self.manager.recent_window_focus_order:
                         yield WindowSwitcherButton(name=window.id, content=window.name)
                         # using name instead of id above, because otherwise it would be
                         # trying to re-use a unique id, and cause a bug.

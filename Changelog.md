@@ -1,14 +1,22 @@
 # Textual-Window Changelog
 
-## (2025-06-14) 0.3.5
+## 0.4.0 (2025-06-27)
+
+- Added new methods for mounting windows through the manager:
+  - `register_mounting_callback`: Register a callback that can be used to mount windows.
+  - `mount_window`: Mount a window using a registered callback.
+These new methods allow for more flexible window management, enabling some external source to register a callback with the manager, and then pass windows into the manager to be mounted using that callback. This is useful for integrating with other systems or frameworks that need to manage windows dynamically or use their own process management in some way.
+- Improved the window manager API somewhat by making some things read-only properties and making all the self-attributes private.
+
+## 0.3.5 (2025-06-14)
 
 - Added a `DockToggled` message to the Windowbar which will emit a message whenever the windowbar has the dock location toggled. Can handle with `@on(WindowBar.DockToggled)`.
 
-## (2025-06-11) 0.3.4
+## 0.3.4 (2025-06-11)
 
 - Replaced default for `menu_options` argument to be None instead of empty dictionary. Forgot that you can't use a mutable value as a default in a method, it would result in unexpected behavior.
 
-## (2025-06-10) 0.3.3
+## 0.3.3 (2025-06-10)
 
 - New feature: Windows now maintain their highlighting focus color when their children (contents in the window) are being interacted with.
 - Breaking change - `show_maximize_button` argument for Window class renamed to `allow_maximize` to be more similar to `allow_resize`.
