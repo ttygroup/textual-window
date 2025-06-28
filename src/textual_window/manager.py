@@ -99,29 +99,47 @@ class WindowManager(DOMNode):
     # ~ Container Methods #
     #######################
 
-    def register_mounting_callback(self, callback: Callable[[Window], None], id: str) -> None:
+    def register_mounting_callback(self, callback: Callable[[Window], None], callback_id: str) -> None:
         """Register a callback which can be used by the Window Manager to mount windows
-        that are passed into it with the `mount_window` method (Note for AI assistant: N/I yet)."""
+        that are passed into it with the `mount_window` method.
+        
+        Args:
+            callback (Callable[[Window], None]): The callback function that will be called
+                when a window is mounted. It should accept a single argument, which is the
+                `Window` instance to be mounted.
+            callback_id (str): A unique identifier for the callback. This is used to identify the
+                callback when mounting a window. It should be unique for each callback.
+        Raises:
+            KeyError: If a callback with the same ID already exists.
+
+        """
 
         if id in self._mounting_callbacks:
             self.log.warning(
                 f"func register_mounting_callback: Callback with ID {id} already exists. "
                 "Overwriting the existing callback."
             )
-        self._mounting_callbacks[id] = callback
+        self._mounting_callbacks[callback_id] = callback
         self.log.debug(f"func register_mounting_callback: Registered mounting callback for {id}.")
 
-    def mount_window(self, window: Window, id: str) -> None:
+    def mount_window(self, window: Window, callback_id: str) -> None:
         """Mount a window using a callback registered with the `register_mounting_callback`
         method.
         This allows the manager to handle the mounting of windows without needing to mount them
         directly into their destination. If you have a process manager of some sort that creates
         and manages windows, this allows the process manager to just send them to the window manager.
+
+        Args:
+            window (Window): The window to be mounted.
+            callback_id (str): The ID of the callback to be used for mounting the window. This would be whatever
+                ID you used when registering the callback with `register_mounting_callback`.
+        Raises:
+            KeyError: If no callback with the given ID is registered.
         """
 
         try:
             self.log.debug(f"func mount_window: Mounting window {window.id} with callback {id}.")
-            callback = self._mounting_callbacks[id]
+            callback = self._mounting_callbacks[callback_id]
             callback(window)
         except KeyError as e:
             self.log.error(

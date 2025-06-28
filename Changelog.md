@@ -1,5 +1,9 @@
 # Textual-Window Changelog
 
+## 0.4.1 (2025-06-27)
+
+- renamed the `id` argument in `register_mounting_callback` and `mount_window` to `callback_id` for clarity. Also added an Args section to the docstrings of these methods to clarify the purpose of the `callback_id` argument.
+
 ## 0.4.0 (2025-06-27)
 
 - Added new methods for mounting windows through the manager:
