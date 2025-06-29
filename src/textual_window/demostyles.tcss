@@ -31,7 +31,7 @@ Button {&:focus {text-style: none;}}
     max-width: 40; max-height: 20;      /* when the window is resized */
 }                                       /* The default min w/h is 12/6 */
 #window_1 { width: 35; height: 16; }    /* The default max w/h is the size of the parent container */
-#window_2 { width: 16; height: 7; min-width:14 ; min-height: 7;}
+# window_2 had the style set by passing in the styles_dict parameter in the constructor.
 .spacer { width: 1fr; }
 .button_container { height: 3; padding: 0 1;}
 .bar_button { margin: 0 2; } 

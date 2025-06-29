@@ -1,5 +1,12 @@
 # Textual-Window Changelog
 
+## 0.5.0 (2025-07-01)
+
+- Added a new `WindowStylesDict` type to the window module, which is a typed dictionary that can be used to define styles for windows through the constructor. This was added to make it easy for some kind of external process manager to create and style windows through Python without needing to know the internals of the window class or use CSS.
+- Added new corresponding `styles_dict` argument to the `Window` constructor which takes a `WindowStylesDict` as an argument.
+- Updated the demo to use the new `styles_dict` argument for one of the windows to demonstrate how it works.
+- Changed: `_calculate_min_max_sizes` in Window renamed to `_calculate_all_sizes`
+
 ## 0.4.1 (2025-06-27)
 
 - renamed the `id` argument in `register_mounting_callback` and `mount_window` to `callback_id` for clarity. Also added an Args section to the docstrings of these methods to clarify the purpose of the `callback_id` argument.
