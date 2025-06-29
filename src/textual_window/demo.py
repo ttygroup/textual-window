@@ -30,7 +30,7 @@ from textual.widgets import (
 
 # Local imports:
 from textual_window import Window, WindowBar, WindowSwitcher
-from textual_window.window import STARTING_HORIZONTAL, STARTING_VERTICAL, WindowStylesDict 
+from textual_window.window import STARTING_HORIZONTAL, STARTING_VERTICAL, WindowStylesDict
 
 
 lorem_ipsum = """Lorem ipsum dolor sit amet, consectetur adipiscing elit. \
@@ -67,15 +67,15 @@ class DummyScreen(Screen[None]):
 class MyWindow(Window):
 
     # NOTE: If the given size is not within the confines set by
-    # the min/max sizes, the window will be resized to fit within those limits.    
+    # the min/max sizes, the window will be resized to fit within those limits.
 
     window_styles: WindowStylesDict = {
-        "width": 16,        # default is 25
-        "height": 7,        # default is 12
-        "max_width": 20,    # default is 'size of the parent container'
-        "max_height": 10,   # default is 'size of the parent container'
-        "min_width": 16,    # default is 12
-        "min_height": 7,    # default is 6
+        "width": 16,  # default is 25
+        "height": 7,  # default is 12
+        "max_width": 20,  # default is 'size of the parent container'
+        "max_height": 10,  # default is 'size of the parent container'
+        "min_width": 16,  # default is 12
+        "min_height": 7,  # default is 6
     }
 
     def __init__(self) -> None:

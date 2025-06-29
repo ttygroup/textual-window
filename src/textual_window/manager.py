@@ -99,10 +99,14 @@ class WindowManager(DOMNode):
     # ~ Container Methods #
     #######################
 
-    def register_mounting_callback(self, callback: Callable[[Window], Awaitable[None]], callback_id: str,) -> None:
+    def register_mounting_callback(
+        self,
+        callback: Callable[[Window], Awaitable[None]],
+        callback_id: str,
+    ) -> None:
         """Register a callback which can be used by the Window Manager to mount windows
         that are passed into it with the `mount_window` method.
-        
+
         Args:
             callback (Callable[[Window], None]): The callback function that will be called
                 when a window is mounted. It should accept a single argument, which is the
@@ -114,13 +118,13 @@ class WindowManager(DOMNode):
 
         """
 
-        if id in self._mounting_callbacks:
+        if callback_id in self._mounting_callbacks:
             self.log.warning(
-                f"func register_mounting_callback: Callback with ID {id} already exists. "
+                f"func register_mounting_callback: Callback with ID {callback_id} already exists. "
                 "Overwriting the existing callback."
             )
         self._mounting_callbacks[callback_id] = callback
-        self.log.debug(f"func register_mounting_callback: Registered mounting callback for {id}.")
+        self.log.debug(f"func register_mounting_callback: Registered mounting callback for {callback_id}.")
 
     def mount_window(self, window: Window, callback_id: str) -> None:
         """Mount a window using a callback registered with the `register_mounting_callback`
@@ -138,15 +142,15 @@ class WindowManager(DOMNode):
         """
 
         try:
-            self.log.debug(f"func mount_window: Mounting window {window.id} with callback {id}.")
+            self.log.debug(f"func mount_window: Mounting window {window.id} with callback {callback_id}.")
             callback = self._mounting_callbacks[callback_id]
             callback(window)
         except KeyError as e:
             self.log.error(
                 f"func mount_window: No mounting callback registered for "
-                f"ID '{id}'. Window {window.id} was not mounted."
+                f"ID '{callback_id}'. Window {window.id} was not mounted."
             )
-            raise KeyError(f"No mounting callback registered for ID '{id}'.") from e
+            raise KeyError(f"No mounting callback registered for ID '{callback_id}'.") from e
 
     #########################
     # ~ WindowBar Methods ~ #

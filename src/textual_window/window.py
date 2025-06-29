@@ -15,6 +15,7 @@ from textual.await_remove import AwaitRemove
 if TYPE_CHECKING:
     # from textual.visual import VisualType
     from textual.css.query import QueryType
+
     # from textual.app import ComposeResult
 
 # Textual and Rich imports
@@ -56,6 +57,7 @@ class WindowStylesDict(TypedDict, total=False):
     needing to use CSS. This is useful for integrating into dynamic applications
     that may be using some kind of external process manager to create windows.
     """
+
     min_width: int
     min_height: int
     max_width: int | None
@@ -287,7 +289,7 @@ class Window(Widget):
 
         # EXTRAS
         self.starting_width: int | None = None  # The starting width of the window.
-        self.starting_height: int | None = None  # The starting height of the window.        
+        self.starting_height: int | None = None  # The starting height of the window.
         self.saved_size: Size | None = None  # Save the size of the window when it is maximized.
         self.saved_offset: Offset | None = None  # Save the offset of the window when it is maximized.
         self.max_width: int | None = None  # The maximum width of the window.
@@ -388,7 +390,7 @@ class Window(Widget):
             self.query_one(Resizer).set_max_min()
         ready_result = await self.manager.window_ready(self)
         if ready_result:  # this means it detected there is a window bar.
-            self.manager.signal_window_state(self, self.display)          
+            self.manager.signal_window_state(self, self.display)
 
     async def _calculate_all_sizes(self) -> tuple[Size, Size, Size]:
         "Returns tuple of `(min_size, max_size)`"
@@ -451,7 +453,7 @@ class Window(Widget):
 
         # Clamp to the set min and maxes (just in case the size set is not within those bounds).
         clamped_width = clamp(width, min_width, max_width)
-        clamped_height = clamp(height, min_height, max_height) 
+        clamped_height = clamp(height, min_height, max_height)
 
         size = Size(clamped_width, clamped_height)
         min_size = Size(min_width, min_height)
@@ -503,7 +505,7 @@ class Window(Widget):
         self.remove()
 
     def _close_animation(self, remove: bool) -> None:
-        # Note: these are called the 'animation' methods, but they actually run every single 
+        # Note: these are called the 'animation' methods, but they actually run every single
         # time and control the opening and closing logic. I know, not the cleanest
         # naming convention ¯\_(ツ)_/¯. Things were added over time, and the names stuck.
 
