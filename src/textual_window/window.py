@@ -9,13 +9,13 @@ You don't need to import from this module. You can simply do:
 
 # Python imports
 from __future__ import annotations
-from typing import Literal, Any, TYPE_CHECKING, Callable, Optional, Iterable
+from typing import Literal, Any, TYPE_CHECKING, Callable, Optional, Iterable, TypedDict
 from textual.await_remove import AwaitRemove
 
 if TYPE_CHECKING:
-    from textual.visual import VisualType
+    # from textual.visual import VisualType
     from textual.css.query import QueryType
-    from textual.app import ComposeResult
+    # from textual.app import ComposeResult
 
 # Textual and Rich imports
 import textual.events as events
@@ -26,17 +26,17 @@ from textual.message import Message
 from textual.binding import Binding
 from textual import on, work
 from textual.geometry import clamp, Size
-from textual.containers import Horizontal, VerticalScroll, Container
-from textual.screen import ModalScreen
+from textual.containers import VerticalScroll
 from textual.geometry import Offset
 from textual.reactive import reactive
 
 # Local imports
 from textual_window.manager import window_manager
-from textual_window.button_bases import ButtonStatic, NoSelectStatic
+from textual_window.windowcomponents import Resizer, TopBar, BottomBar
 
 __all__ = [
     "Window",
+    "WindowStylesDict",
     "STARTING_VERTICAL",
     "STARTING_HORIZONTAL",
     "MODE",
@@ -47,354 +47,22 @@ STARTING_VERTICAL = Literal["top", "uppermiddle", "middle", "lowermiddle", "bott
 STARTING_HORIZONTAL = Literal["left", "centerleft", "center", "centerright", "right"]
 MODE = Literal["permanent", "temporary"]
 
-BUTTON_SYMBOLS: dict[str, str] = {
-    "close": "X",
-    "maximize": "☐",
-    "restore": "❐",
-    "minimize": "—",
-    "hamburger": "☰",
-    "resizer": "◢",
-}
 
+class WindowStylesDict(TypedDict, total=False):
+    """A dictionary of styles for the Window widget.
 
-class HamburgerMenu(ModalScreen[None]):
-
-    CSS = """
-    HamburgerMenu {
-        background: $background 0%;
-        align: left top;    /* This will set the starting coordinates to (0, 0) */
-    }                       /* Which we need for the absolute offset to work */
-    #menu_container {
-        background: $surface;
-        width: 14; height: 2;
-        border-left: wide $panel;
-        border-right: wide $panel;        
-        &.bottom { border-top: hkey $panel; }
-        &.top { border-bottom: hkey $panel; }
-        & > ButtonStatic {
-            &:hover { background: $panel-lighten-2; }
-            &.pressed { background: $primary; }        
-        }
-    }
+    This can be passed into the Window constructor argument named `styles_dict`.
+    It provides a way to set window styles entirely through the constructor without
+    needing to use CSS. This is useful for integrating into dynamic applications
+    that may be using some kind of external process manager to create windows.
     """
-
-    def __init__(
-        self,
-        menu_offset: Offset,
-        window: Window,
-        options: dict[str, Callable[..., Optional[Any]]],
-    ) -> None:
-
-        super().__init__()
-        self.menu_offset = menu_offset
-        self.window = window
-        self.options = options
-
-    def compose(self) -> ComposeResult:
-
-        with Container(id="menu_container"):
-            for key in self.options.keys():
-                yield ButtonStatic(key, name=key)
-
-    def on_mount(self) -> None:
-
-        menu = self.query_one("#menu_container")
-        y_offset = self.menu_offset.y - 2 if self.menu_offset.y >= 2 else 0
-        menu.offset = Offset(self.menu_offset.x - 9, y_offset)
-
-    def on_mouse_up(self) -> None:
-
-        self.dismiss(None)
-
-    @on(ButtonStatic.Pressed)
-    def button_pressed(self, event: ButtonStatic.Pressed) -> None:
-
-        if event.button.name:
-            self.call_after_refresh(self.options[event.button.name])
-
-
-class CloseButton(NoSelectStatic):
-
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
-        super().__init__(content=content, **kwargs)
-        self.window = window
-        self.click_started_on: bool = False  # see note below
-
-        # You might think that using self.capture_mouse() here would be simpler than
-        # using a flag. But it causes issues. capture_mouse really shines when it's
-        # used on buttons that need to move around the screen. (And it is used for that
-        # purpose below). But for this button and several others, they will never be moving
-        # around while actively trying to click them. So using capture_mouse() causes various
-        # small issues that are totally unnecessary. (inconsistent behavior, glitchiness, etc.)
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.click_started_on = True
-            self.add_class("pressed")
-            self.window.focus()
-
-    def on_mouse_up(self) -> None:
-
-        self.remove_class("pressed")
-        if self.click_started_on:
-            self.window.close_window()
-            self.click_started_on = False
-
-    def on_leave(self) -> None:
-
-        self.remove_class("pressed")
-        self.click_started_on = False
-
-
-class HamburgerButton(NoSelectStatic):
-
-    def __init__(
-        self,
-        content: VisualType,
-        window: Window,
-        options: dict[str, Callable[..., Optional[Any]]],
-        **kwargs: Any,
-    ):
-        super().__init__(content=content, **kwargs)
-        self.window = window
-        self.options = options
-        self.click_started_on: bool = False
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.click_started_on = True
-            self.add_class("pressed")
-            self.window.focus()
-
-    async def on_mouse_up(self, event: events.MouseUp) -> None:
-
-        self.remove_class("pressed")
-        if self.click_started_on:
-            self.show_popup(event)
-            self.click_started_on = False
-
-    def on_leave(self) -> None:
-
-        self.remove_class("pressed")
-        self.click_started_on = False
-
-    @work
-    async def show_popup(self, event: events.MouseUp) -> None:
-
-        menu_offset = event.screen_offset
-
-        await self.app.push_screen_wait(
-            HamburgerMenu(
-                menu_offset=menu_offset,
-                window=self.window,
-                options=self.options,
-            )
-        )
-
-
-class MaximizeButton(NoSelectStatic):
-
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
-        super().__init__(content=content, **kwargs)
-        self.window = window
-        self.click_started_on: bool = False
-        self.tooltip = "Maximize" if self.window.maximize_state is False else "Restore"
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.click_started_on = True
-            self.add_class("pressed")
-            self.window.focus()
-
-    def on_mouse_up(self) -> None:
-
-        self.remove_class("pressed")
-        if self.click_started_on:
-            self.window.toggle_maximize()
-            self.click_started_on = False
-
-    def on_leave(self) -> None:
-
-        self.remove_class("pressed")
-        self.click_started_on = False
-
-    def swap_in_restore_icon(self) -> None:
-
-        self.update(BUTTON_SYMBOLS["restore"])
-        self.tooltip = "Restore"
-
-    def swap_in_maximize_icon(self) -> None:
-
-        self.update(BUTTON_SYMBOLS["maximize"])
-        self.tooltip = "Maximize"
-
-
-class MinimizeButton(NoSelectStatic):
-
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any):
-        super().__init__(content=content, **kwargs)
-        self.window = window
-        self.click_started_on: bool = False
-        self.tooltip = "Minimize"
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.click_started_on = True
-            self.add_class("pressed")
-            self.window.focus()
-
-    def on_mouse_up(self) -> None:
-
-        self.remove_class("pressed")
-        if self.click_started_on:
-            self.window.minimize()
-            self.click_started_on = False
-
-    def on_leave(self) -> None:
-
-        self.remove_class("pressed")
-        self.click_started_on = False
-
-
-class Resizer(NoSelectStatic):
-
-    def __init__(self, content: VisualType, window: Window, **kwargs: Any) -> None:
-        super().__init__(content=content, **kwargs)
-        self.window = window
-
-    def set_max_min(self) -> None:
-
-        assert isinstance(self.window.parent, Widget)
-        try:
-            self.min_width = self.window.min_width
-            self.min_height = self.window.min_height
-            self.max_width = self.window.max_width if self.window.max_width else self.window.parent.size.width
-            self.max_height = (
-                self.window.max_height if self.window.max_height else self.window.parent.size.height
-            )
-        except AttributeError as e:
-            self.log.error(f"{self.window.id} does not have min/max width/height set. ")
-            raise e
-
-    def on_mouse_move(self, event: events.MouseMove) -> None:
-
-        # App.mouse_captured refers to the widget that is currently capturing mouse events.
-        if self.app.mouse_captured == self:
-
-            assert isinstance(self.window.parent, Widget)
-            assert self.window.styles.width is not None
-            assert self.window.styles.height is not None
-
-            total_delta = event.screen_offset - self.position_on_down
-            new_size = self.size_on_down + total_delta
-
-            self.window.styles.width = clamp(new_size.width, self.min_width, self.max_width)
-            self.window.styles.height = clamp(new_size.height, self.min_height, self.max_height)
-
-            # * Explanation:
-            # Get the absolute position of the mouse right now (event.screen_offset),
-            # minus where it was when the mouse was pressed down (position_on_down).
-            # That gives the total delta from the original position.
-            # Note that this is not the same as the event.delta attribute,
-            # that only gives you the delta from the last mouse move event.
-            # But we need the total delta from the original position.
-            # Once we have that, add the total delta to size of the window.
-            # If total_delta is negative, the size will be smaller
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.position_on_down = event.screen_offset
-            self.size_on_down = self.window.size
-
-            self.add_class("pressed")
-            self.capture_mouse()
-            self.window.focus()
-
-    def on_mouse_up(self) -> None:
-
-        self.remove_class("pressed")
-        self.release_mouse()
-        self.window.clamp_into_parent_area()  # Clamp to parent if resizing put it out of bounds
-
-
-class TitleBar(NoSelectStatic):
-
-    def __init__(self, window_title: str, window: Window, **kwargs: Any):
-        super().__init__(content=window_title, **kwargs)
-        self.window = window
-
-    def on_mouse_move(self, event: events.MouseMove) -> None:
-
-        if self.app.mouse_captured == self:
-            if not self.window.snap_state:  # not locked, can move freely
-                self.window.offset = self.window.offset + event.delta
-            else:  # else, if locked to parent:
-                assert isinstance(self.window.parent, Widget)
-                self.window.offset = self.window.offset + event.delta  # first move into place normally
-                self.window.clamp_into_parent_area()  # then clamp back to parent area.
-
-                # Setting the offset and then clamping it again afterwards might not seem efficient,
-                # but it looks the best, and least glitchy. I tried doing it in a single operation, and
-                # it didn't work as well, or look as good.
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-
-        if event.button == 1:  # left button
-            self.add_class("pressed")
-            self.capture_mouse()
-            self.window.focus()
-
-    def on_mouse_up(self) -> None:
-
-        self.remove_class("pressed")
-        self.release_mouse()
-
-
-class TopBar(Horizontal):
-
-    def __init__(  # passing in window might seem redundant because of self.parent,
-        self,  # but it gives better type hinting and allows for more advanced
-        window: Window,  # dependeny injection of the window down to children widgets.
-        window_title: str,
-        options: dict[str, Callable[..., Optional[Any]]] | None,
-    ):
-        super().__init__()
-        self.window = window
-        self.window_title = (window.icon + " " + window_title) if window.icon else window_title
-        self.options = options
-
-    def compose(self) -> ComposeResult:
-
-        yield TitleBar(self.window_title, window=self.window)
-        if self.options:
-            yield HamburgerButton(
-                BUTTON_SYMBOLS["hamburger"], window=self.window, options=self.options, classes="windowbutton"
-            )
-        yield MinimizeButton(BUTTON_SYMBOLS["minimize"], window=self.window, classes="windowbutton")
-        if self.window.allow_maximize_window:
-            self.maximize_button = MaximizeButton(
-                BUTTON_SYMBOLS["maximize"], window=self.window, classes="windowbutton"
-            )
-            yield self.maximize_button
-        if self.window.window_mode == "temporary":
-            yield CloseButton(BUTTON_SYMBOLS["close"], window=self.window, classes="windowbutton close")
-
-
-class BottomBar(Horizontal):
-
-    def __init__(self, window: Window):
-        super().__init__()
-        self.window = window
-
-    def compose(self) -> ComposeResult:
-        yield NoSelectStatic(id="bottom_bar_text")
-        if self.window.allow_resize:
-            yield Resizer(BUTTON_SYMBOLS["resizer"], window=self.window, classes="windowbutton")
+    min_width: int
+    min_height: int
+    max_width: int | None
+    max_height: int | None
+    width: int | None
+    height: int | None
+    # More may be added here with time or by request
 
 
 class WindowMessage(Message):
@@ -529,6 +197,7 @@ class Window(Widget):
         allow_resize: bool = True,
         allow_maximize: bool = False,
         menu_options: dict[str, Callable[..., Optional[Any]]] | None = None,
+        styles_dict: WindowStylesDict | None = None,
         animated: bool = True,
         show_title: bool = True,
         disabled: bool = False,
@@ -566,11 +235,14 @@ class Window(Widget):
                 The hamburger menu will be shown automatically if you pass in any options.
                 The key is the name of the option as it will be displayed in the menu.
                 The value is a callable that will be called when the option is selected.
-                #! add note about functools partial?
+            styles_dict: A dictionary of styles to apply to the window.
+                Setting styles through the constructor is useful for dynamic applications
+                where you may have some kind of external process manager that creates windows,
+                or you can't use CSS for some reason.
             animated: Whether the window should be animated.
                 This will add a fade in/out effect when opening/closing the window. You can modify
                 the `animation_duration` attribute to change the duration of the animation.
-            show_title: Whether to show the title bar or not.
+            show_title: Whether to show the title in the title bar or not.
             disabled: Whether the widget is disabled or not.
         """
 
@@ -601,6 +273,7 @@ class Window(Widget):
         self.allow_resize = allow_resize
         self.allow_maximize_window = allow_maximize
         self.menu_options = menu_options
+        self.styles_dict = styles_dict
         self.animated = animated
         self.show_title = show_title
         self.icon = icon
@@ -613,6 +286,8 @@ class Window(Widget):
         # self.disable_modifying_snap_state = False    #! [N/I]
 
         # EXTRAS
+        self.starting_width: int | None = None  # The starting width of the window.
+        self.starting_height: int | None = None  # The starting height of the window.        
         self.saved_size: Size | None = None  # Save the size of the window when it is maximized.
         self.saved_offset: Offset | None = None  # Save the offset of the window when it is maximized.
         self.max_width: int | None = None  # The maximum width of the window.
@@ -689,9 +364,6 @@ class Window(Widget):
     def _on_mount(self, event: events.Mount) -> None:
         super()._on_mount(event)
 
-        self.starting_width = self.styles.width  # lock this in for Resetting later.
-        self.starting_height = self.styles.height
-
         if self.app._dom_ready:  # type: ignore[unused-ignore]
             self._dom_ready()
         else:
@@ -700,7 +372,12 @@ class Window(Widget):
     @work(group="window_ready")
     async def _dom_ready(self) -> None:
 
-        min_size, max_size = await self._calculate_max_min_sizes()
+        size, min_size, max_size = await self._calculate_all_sizes()
+
+        self.starting_width = size.width
+        self.starting_height = size.height
+        self.styles.width = size.width
+        self.styles.height = size.height
         self.min_width = min_size.width
         self.min_height = min_size.height
         self.max_width = max_size.width
@@ -711,16 +388,15 @@ class Window(Widget):
             self.query_one(Resizer).set_max_min()
         ready_result = await self.manager.window_ready(self)
         if ready_result:  # this means it detected there is a window bar.
-            self.manager.signal_window_state(self, self.display)
+            self.manager.signal_window_state(self, self.display)          
 
-    async def _calculate_max_min_sizes(self) -> tuple[Size, Size]:
+    async def _calculate_all_sizes(self) -> tuple[Size, Size, Size]:
         "Returns tuple of `(min_size, max_size)`"
 
         assert isinstance(self.parent, Widget)
         assert self.parent.size.width is not None
         assert self.parent.size.height is not None
 
-        # MIN #
         if self.styles.min_width and self.styles.min_width.cells:
             min_width = self.styles.min_width.cells
         else:
@@ -746,19 +422,51 @@ class Window(Widget):
         else:
             max_height = self.parent.size.height
 
+        # NOTE: We will always have a max width and max height, and so we will also
+        # by extension always have a width and height.
+        width = self.styles.width.cells if self.styles.width and self.styles.width.cells else max_width
+        height = self.styles.height.cells if self.styles.height and self.styles.height.cells else max_height
+
+        if self.styles_dict:
+            # Any of these which are not None will override any styles
+            # set through other methods such as CSS.
+            min_width_style = self.styles_dict.get("min_width", None)
+            if min_width_style is not None:
+                min_width = min_width_style
+            min_height_style = self.styles_dict.get("min_height", None)
+            if min_height_style is not None:
+                min_height = min_height_style
+            max_width_style = self.styles_dict.get("max_width", None)
+            if max_width_style is not None:
+                max_width = max_width_style
+            max_height_style = self.styles_dict.get("max_height", None)
+            if max_height_style is not None:
+                max_height = max_height_style
+            width_style = self.styles_dict.get("width", None)
+            if width_style is not None:
+                width = width_style
+            height_style = self.styles_dict.get("height", None)
+            if height_style is not None:
+                height = height_style
+
+        # Clamp to the set min and maxes (just in case the size set is not within those bounds).
+        clamped_width = clamp(width, min_width, max_width)
+        clamped_height = clamp(height, min_height, max_height) 
+
+        size = Size(clamped_width, clamped_height)
         min_size = Size(min_width, min_height)
         max_size = Size(max_width, max_height)
-        return (min_size, max_size)
+        return (size, min_size, max_size)
 
     async def _calculate_starting_position(self) -> Offset:
         """Returns the starting position of the window
         based on the parent size and starting position arguments."""
 
-        assert self.starting_width and self.starting_width.cells
-        assert self.starting_height and self.starting_height.cells
+        assert self.starting_width
+        assert self.starting_height
         assert isinstance(self.parent, Widget)
 
-        size = Size(self.starting_width.cells, self.starting_height.cells)
+        size = Size(self.starting_width, self.starting_height)
         x, y = self.parent.size - size
 
         # Parent size minus the window size will be equal to
@@ -795,8 +503,9 @@ class Window(Widget):
         self.remove()
 
     def _close_animation(self, remove: bool) -> None:
-        # Note: these are called the 'animation' methods, but they actually
-        # run every single time and control the opening and closing logic.
+        # Note: these are called the 'animation' methods, but they actually run every single 
+        # time and control the opening and closing logic. I know, not the cleanest
+        # naming convention ¯\_(ツ)_/¯. Things were added over time, and the names stuck.
 
         def close_animation_callback() -> None:
             if remove:
@@ -960,20 +669,6 @@ class Window(Widget):
     # ~ Public API ~ #
     ##################
 
-    # def set_focus_style(self, enabled: bool) -> None:
-    #     """This method can be used to force the window to be styled as though
-    #     it is focused even when it is not. This is useful if you want the window
-    #     to appear to be focused when the children inside it are focused."""
-
-    #     if enabled:
-    #         self.query_one(TopBar).add_class("focused")
-    #         self.query_one(BottomBar).add_class("focused")
-    #         self.query_one("#content_pane").add_class("focused")
-    #     else:
-    #         self.query_one(TopBar).remove_class("focused")
-    #         self.query_one(BottomBar).remove_class("focused")
-    #         self.query_one("#content_pane").remove_class("focused")
-
     def remove_window(self) -> None:
         """This will remove the window from the DOM and the Window Bar."""
         self._close_animation(remove=True)
@@ -1051,7 +746,9 @@ class Window(Widget):
     async def reset_size(self) -> None:
         """Reset the window size to its starting size."""
 
-        min_size, max_size = await self._calculate_max_min_sizes()
+        size, min_size, max_size = await self._calculate_all_sizes()
+        self.styles.width = size.width
+        self.styles.height = size.height
         self.min_width = min_size.width
         self.min_height = min_size.height
         self.max_width = max_size.width

@@ -14,7 +14,7 @@ to all of them."""
 
 # Python imports
 from __future__ import annotations
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Awaitable
 
 if TYPE_CHECKING:
     from textual_window.window import Window
@@ -55,7 +55,7 @@ class WindowManager(DOMNode):
         self._windowbar: WindowBar | None = None
         self._last_focused_window: Window | None = None
         self._recent_focus_order: list[Window] = []
-        self._mounting_callbacks: dict[str, Callable[[Window], None]] = {}
+        self._mounting_callbacks: dict[str, Callable[[Window], Awaitable[None]]] = {}
 
         # These 3 variables are just used to keep track of the closing process.
         # All 3 get reset every time the process finishes.
@@ -99,7 +99,7 @@ class WindowManager(DOMNode):
     # ~ Container Methods #
     #######################
 
-    def register_mounting_callback(self, callback: Callable[[Window], None], callback_id: str) -> None:
+    def register_mounting_callback(self, callback: Callable[[Window], Awaitable[None]], callback_id: str,) -> None:
         """Register a callback which can be used by the Window Manager to mount windows
         that are passed into it with the `mount_window` method.
         
