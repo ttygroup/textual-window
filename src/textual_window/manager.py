@@ -126,7 +126,7 @@ class WindowManager(DOMNode):
         self._mounting_callbacks[callback_id] = callback
         self.log.debug(f"func register_mounting_callback: Registered mounting callback for {callback_id}.")
 
-    def mount_window(self, window: Window, callback_id: str) -> None:
+    async def mount_window(self, window: Window, callback_id: str) -> None:
         """Mount a window using a callback registered with the `register_mounting_callback`
         method.
         This allows the manager to handle the mounting of windows without needing to mount them
@@ -144,7 +144,7 @@ class WindowManager(DOMNode):
         try:
             self.log.debug(f"func mount_window: Mounting window {window.id} with callback {callback_id}.")
             callback = self._mounting_callbacks[callback_id]
-            callback(window)
+            await callback(window)
         except KeyError as e:
             self.log.error(
                 f"func mount_window: No mounting callback registered for "

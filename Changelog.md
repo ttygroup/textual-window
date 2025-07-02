@@ -1,7 +1,12 @@
 # Textual-Window Changelog
 
+## 0.5.1 (2025-07-15)
+
+- Bug fix: Forgot to actually await the callback in the `mount_window` method.
+
 ## 0.5.0 (2025-07-01)
 
+- Breaking change: The `mount_window` method (added in 0.4.0) is now an async method and must be awaited. This change was made to allow the callback to be awaited, which is necessary for proper asynchronous behavior in Textual.
 - Added a new `WindowStylesDict` type to the window module, which is a typed dictionary that can be used to define styles for windows through the constructor. This was added to make it easy for some kind of external process manager to create and style windows through Python without needing to know the internals of the window class or use CSS.
 - Added new corresponding `styles_dict` argument to the `Window` constructor which takes a `WindowStylesDict` as an argument.
 - Updated the demo to use the new `styles_dict` argument for one of the windows to demonstrate how it works.
