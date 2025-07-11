@@ -78,12 +78,6 @@ class WindowManager(DOMNode):
         return self._windowbar
 
     @property
-    def recent_window_focus_order(self) -> list[Window]:
-        """Get the list of windows in the order they were most recently focused."""
-        # called by Window.compose()
-        return self._recent_focus_order
-
-    @property
     def last_focused_window(self) -> Window | None:
         """Get the last focused window."""
         # called by Window.action_confirm()
@@ -94,6 +88,17 @@ class WindowManager(DOMNode):
         """Set the last focused window."""
         # called by Window._on_focus()
         self._last_focused_window = window
+
+    @property
+    def recent_window_focus_order(self) -> list[Window]:
+        """Get the list of windows in the order they were most recently focused."""
+        # called by Window.compose()
+        return self._recent_focus_order
+
+    @property
+    def mounting_callbacks(self) -> dict[str, Callable[[Window], Awaitable[None]]]:
+        """Get the dictionary of mounting callbacks."""
+        return self._mounting_callbacks
 
     #######################
     # ~ Container Methods #
