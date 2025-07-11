@@ -1,5 +1,9 @@
 # Textual-Window Changelog
 
+## 0.5.2 (2025-07-20)
+
+- Added new property `mounting_callbacks` to the `WindowManager` class, which returns a dictionary of all registered mounting callbacks. Just a wrapper over `_mounting_callbacks` (honestly I just forgot to add it).
+
 ## 0.5.1 (2025-07-15)
 
 - Bug fix: Forgot to actually await the callback in the `mount_window` method.

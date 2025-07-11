@@ -9,3 +9,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# other
+**/Thumbs.db
+**/thumbs.db
