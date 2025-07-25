@@ -1,10 +1,14 @@
 # Textual-Window Changelog
 
-## 0.5.2 (2025-07-20)
+## 0.6.0 (2025-07-21)
+
+- Potentially Breaking change: The `WindowManager` class no longer inherits from `textual.dom.DOMNode`. This change was made to simplify the class and remove unnecessary complexity. The window manager is not mounted in the DOM. I was using it to give access to certain Textual widget features, but I just refactored the code to not need them anymore.
+
+## 0.5.2 (2025-07-1)
 
 - Added new property `mounting_callbacks` to the `WindowManager` class, which returns a dictionary of all registered mounting callbacks. Just a wrapper over `_mounting_callbacks` (honestly I just forgot to add it).
 
-## 0.5.1 (2025-07-15)
+## 0.5.1 (2025-07-02)
 
 - Bug fix: Forgot to actually await the callback in the `mount_window` method.
 

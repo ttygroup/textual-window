@@ -21,15 +21,18 @@ if TYPE_CHECKING:
     from textual_window.windowbar import WindowBar
     import rich.repr
 
+# Library imports
+from pydispatch import dispatcher   # type: ignore
+
 # Textual imports
-from textual.dom import DOMNode
+from textual import log
 
 __all__ = [
     "window_manager",
 ]
 
 
-class WindowManager(DOMNode):
+class WindowManager:
     """! Do not import this class directly. Use the `window_manager` instance instead.
 
     This class is the blueprint for a singleton instance used internally by the
@@ -62,6 +65,16 @@ class WindowManager(DOMNode):
         self._closing_in_progress = False
         self._num_of_temporary_windows = 0
         self._checked_in_closing_windows = 0
+
+        # ~ Signals ~ #
+
+        # self.signal_window_unregistered: Signal[Window] = Signal(self, "theme-changed")
+        """Signal that is published when the App's theme is changed.
+        
+        Subscribers will receive the new theme object as an argument to the callback.
+        """
+
+
 
     ##################
     # ~ Properties ~ #
@@ -124,12 +137,12 @@ class WindowManager(DOMNode):
         """
 
         if callback_id in self._mounting_callbacks:
-            self.log.warning(
+            log.warning(
                 f"func register_mounting_callback: Callback with ID {callback_id} already exists. "
                 "Overwriting the existing callback."
             )
         self._mounting_callbacks[callback_id] = callback
-        self.log.debug(f"func register_mounting_callback: Registered mounting callback for {callback_id}.")
+        log.debug(f"func register_mounting_callback: Registered mounting callback for {callback_id}.")
 
     async def mount_window(self, window: Window, callback_id: str) -> None:
         """Mount a window using a callback registered with the `register_mounting_callback`
@@ -147,11 +160,11 @@ class WindowManager(DOMNode):
         """
 
         try:
-            self.log.debug(f"func mount_window: Mounting window {window.id} with callback {callback_id}.")
+            log.debug(f"func mount_window: Mounting window {window.id} with callback {callback_id}.")
             callback = self._mounting_callbacks[callback_id]
             await callback(window)
         except KeyError as e:
-            self.log.error(
+            log.error(
                 f"func mount_window: No mounting callback registered for "
                 f"ID '{callback_id}'. Window {window.id} was not mounted."
             )
@@ -172,7 +185,7 @@ class WindowManager(DOMNode):
         # called by Window.__init__()
 
         if not self._windowbar:
-            self.log.debug("func register_windowbar: Registering windowbar with the manager.")
+            log.debug("func register_windowbar: Registering windowbar with the manager.")
             self._windowbar = windowbar
         else:
             raise RuntimeError(
@@ -186,7 +199,7 @@ class WindowManager(DOMNode):
         # called by Window._on_unmount()
 
         if self._windowbar:
-            self.log.debug("func unregister_windowbar: Unregistering windowbar from the manager.")
+            log.debug("func unregister_windowbar: Unregistering windowbar from the manager.")
             self._windowbar = None
         else:
             raise RuntimeError(
@@ -240,7 +253,7 @@ class WindowManager(DOMNode):
 
         if window.id in self._windows:
             self._windows.pop(window.id)
-            self.log.debug(f"func unregister_window: Unregistered {window.id} from the manager.")
+            log.debug(f"func unregister_window: Unregistered {window.id} from the manager.")
         else:
             raise ValueError(
                 "Window ID not found in the manager. "
@@ -252,13 +265,29 @@ class WindowManager(DOMNode):
             self._windowbar.remove_window_button(window)  # type: ignore[unused-ignore]
 
         if self._closing_in_progress:
-            if window.window_mode == "temporary":  # <- this shouldn't be necessary.
+            # NOTE: Temporary windows will not be closed as part of the close_all_windows
+            # process. But I'm leaving this check here just in case.
+            # Technically there is nothing stopping a temporary window from being closed
+            # if someone were to do it programattically.
+            if window.window_mode == "temporary":  # <- this shouldn't be necessary
                 self._checked_in_closing_windows += 1
 
             if self._checked_in_closing_windows == self._num_of_temporary_windows:
                 self._checked_in_closing_windows = 0
                 self._num_of_temporary_windows = 0
-                self.call_after_refresh(lambda: setattr(self, "closing_in_progress", False))
+                self._closing_in_progress = False
+
+        #? Explanation of the above `_closing_in_progress` thing:
+        # If the `close_all_windows` method is called, all of the windows will *first*
+        # unregister themselves from the manager, and then they will all be removed. 
+        # This creates a problem: As Textual is actually unmounting windows from the DOM,
+        # it will try to shift focus to the next window in Textual's internal focus order.
+        # Windows automatically update the recent focus order when Textual focuses them.
+        # However in this case, the _recent_focus_order list will be empty, since we empty it first.
+        # Thus, we need a way to keep track of whether there is a 'closing in progress' or not.
+        # If there is, then we know the list is empty because we are closing all windows.
+        # Without this check, there would be no way to know if the list is empty because
+        # of a closing in progress, or if it is empty because it is supposed to be empty.
 
     def change_window_focus_order(self, window: Window) -> None:
         """recent_focus_order attribute is read by the WindowSwitcher to display
@@ -278,7 +307,6 @@ class WindowManager(DOMNode):
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield "windows", self._windows
-        yield "layers", self.app.screen.styles.layers
 
     def get_windows_as_dict(self) -> dict[str, Window]:
         """Get a dictionary of all windows."""
@@ -309,6 +337,7 @@ class WindowManager(DOMNode):
         # First we need to count how many temporary windows there are.
         # It counts them as they unregister so it knows when it can set
         # closing_in_progress back to False.
+        #! Note: maybe it should just know this info without needing to query for it?
         self._num_of_temporary_windows = len(
             [w for w in self._windows.values() if w.window_mode == "temporary"]
         )
