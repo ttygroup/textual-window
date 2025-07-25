@@ -1,16 +1,16 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/800de9df-be91-45ff-87eb-abcc1c19c5a9">
-  <img src="https://github.com/user-attachments/assets/06b16b87-a37d-405c-b9fb-44ea2d89de5c">
+  <source media="(prefers-color-scheme: dark)" srcset="https://ttygroup.github.io/assets/textual-window/banner-dark-theme.png">
+  <img src="https://ttygroup.github.io/assets/textual-window/banner-light-theme.png">
 </picture>
 
 # Textual-Window
 
-![badge](https://img.shields.io/badge/Linted-Ruff-blue&logo=ruff)
-![badge](https://img.shields.io/badge/Formatted-Black-black)
-![badge](https://img.shields.io/badge/Type_checked-MyPy-blue&logo=python)
-![badge](https://img.shields.io/badge/Type_checked-Pyright-blue&logo=python)
-![badge](https://img.shields.io/badge/License-MIT-blue)
-[![Framework: Textual](https://img.shields.io/badge/framework-Textual-5967FF?logo=python)](https://www.textualize.io/)
+[![badge](https://img.shields.io/badge/linted-Ruff-blue?style=for-the-badge&logo=ruff)](https://astral.sh/ruff)
+[![badge](https://img.shields.io/badge/formatted-black-black?style=for-the-badge)](https://github.com/psf/black)
+[![badge](https://img.shields.io/badge/type_checked-MyPy_(strict)-blue?style=for-the-badge&logo=python)](https://mypy-lang.org/)
+[![badge](https://img.shields.io/badge/Type_checked-Pyright_(strict)-blue?style=for-the-badge&logo=python)](https://microsoft.github.io/pyright/)
+[![badge](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://opensource.org/license/mit)
+[![badge](https://img.shields.io/badge/framework-Textual-blue?style=for-the-badge)](https://textual.textualize.io/)
 
 Textual-Window is an extension library for [Textual](https://github.com/Textualize/textual).
 
@@ -39,7 +39,7 @@ See the documentation for more details.
 
 ## Demo App
 
-If you have uv or Pipx, you can immediately try the demo app:
+If you have [uv](https://docs.astral.sh/uv/) or [pipx](https://pipx.pypa.io/stable/), you can immediately try the demo app:
 
 ```sh
 uvx textual-window 
@@ -51,12 +51,17 @@ pipx run textual-window
 
 ## Documentation
 
-### [Click here for documentation](https://edward-jazzhands.github.io/libraries/textual-window/)
+### [Click here for documentation](https://edward-jazzhands.github.io/libraries/textual-window/docs/)
 
 ## Video
 
-https://github.com/user-attachments/assets/2bf5f4d9-f289-4e7f-b9ae-e91fd34c1ce3
+<video style="width: 100%; height: auto;" controls loop>
+  <source src="https://ttygroup.github.io/assets/textual-window/demo-0.3.5-handbrake.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
-## Questions, issues, suggestions?
+[ ](https://github.com/user-attachments/assets/2bf5f4d9-f289-4e7f-b9ae-e91fd34c1ce3)
 
-Feel free to post an issue.
+## Questions, Issues, Suggestions?
+
+Use the [issues](https://github.com/edward-jazzhands/textual-window/issues) section for bugs or problems, and post ideas or feature requests on the [TTY group discussion board](https://github.com/orgs/ttygroup/discussions).
