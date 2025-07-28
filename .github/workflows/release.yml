@@ -1,0 +1,107 @@
+# HOW THIS WORKFLOW WORKS
+# This workflow automates creating a GitHub Release and publishing your Python package to PyPI.
+
+# --- Manual Steps ---
+# 1. Edit `pyproject.toml` to set the new version (e.g., `version = "1.2.3"` or `version = "1.2.4-rc1"` for pre-releases).
+# 2. Commit the change and merge it to the `main` branch (From the feature branch or however you work).
+# 3. On your local machine, fetch and pull the latest changes from `main` to ensure you're up to date.
+# 4. Use the justfile: `just release` to trigger the process.
+
+# --- Automation ---
+# The workflow then automatically:
+# - runs .github/scripts/tag_release.py to create a new tag based on the version in `pyproject.toml`.
+# - Pushes the new tag to github which triggers this workflow.
+# - Checks that the tag matches the version in `pyproject.toml`.
+# - Builds the sdist and wheel.
+# - Publishes the package to PyPI.
+# - Creates a new GitHub Release based on the tag with logic for marking pre-releases.
+
+name: Create Release and Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*" # Runs on any tag starting with "v", e.g., v1.2.3
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name to create release for (e.g., v1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  build-and-publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    # These permissions are required for the actions below.    
+    permissions:
+      id-token: write   # Required for Trusted Publishing with PyPI (OIDC).
+      contents: write   # Required to create the GitHub Release.
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          # If manually triggered, checkout the specific tag
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install required python packages
+        run: python -m pip install --upgrade build tomli
+
+      - name: Set tag name
+        id: tag
+        # github.ref_name is the name of the tag that triggered this workflow,
+        # if it was triggered by a tag push and not manually. 
+        # inputs.tag_name is used when the workflow is manually triggered.       
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ inputs.tag_name }}"
+          else
+            TAG_NAME="${{ github.ref_name }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG_NAME"
+
+      - name: Verify tag matches version
+        run: |
+          TAG_VERSION=${{ steps.tag.outputs.tag_name }}
+          PYPROJECT_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          if [ "v$PYPROJECT_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: Tag $TAG_VERSION does not match pyproject.toml version v$PYPROJECT_VERSION"
+            exit 1
+          fi          
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        # This action uses Trusted Publishing, which is configured in your PyPI project settings.
+        # It avoids the need for storing API tokens as secrets.
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Extract changelog for release
+        id: changelog
+        run: |
+          VERSION=${{ steps.tag.outputs.tag_name }}
+          VERSION=${VERSION#v}  # Strip leading "v"
+          awk "/## \[${VERSION//./\\.}\]/,/^## \[/" CHANGELOG.md | head -n -1 > body.md
+          # Read the content and set it as output
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
+          cat body.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          # The release title will be "Release vX.X.X" or "Pre-release vX.X.X-rc1"
+          # depending on whether a hyphen is present in the tag name.
+          release_name: ${{ startsWith(steps.tag.outputs.tag_name, 'v') && contains(steps.tag.outputs.tag_name, '-') && format('Pre-release {0}', steps.tag.outputs.tag_name) || format('Release {0}', steps.tag.outputs.tag_name) }}
+          # Marks the release as a "pre-release" on GitHub if the tag contains a hyphen (e.g., "-rc1").
+          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-') }}
+          body: ${{ steps.changelog.outputs.RELEASE_BODY }}

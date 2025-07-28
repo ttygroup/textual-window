@@ -3,15 +3,22 @@
 name: Update Central Docs
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  # Only trigger if the build workflow succeeded
+  workflow_run:
+    workflows: ["Create Release and Publish to PyPI"]
+    types:
+      - completed 
+  # Manual triggering is allowed as well
+  # This allows manual updates to the docs without a new release
+  # To be more professional I should use some kind of 'docs' tag
+  # But this is fine for now.
+  workflow_dispatch:      
 
 
 jobs:
   create_docs_pr:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       # Step 1: Check out the code of the library that triggered the workflow
       - name: Checkout Library Repo
