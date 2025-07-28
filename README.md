@@ -67,7 +67,7 @@ pipx run textual-window
   Your browser does not support the video tag.
 </video>
 
-[ ](https://github.com/user-attachments/assets/2bf5f4d9-f289-4e7f-b9ae-e91fd34c1ce3)
+[](https://github.com/user-attachments/assets/2bf5f4d9-f289-4e7f-b9ae-e91fd34c1ce3)
 
 ## Questions, Issues, Suggestions?
 

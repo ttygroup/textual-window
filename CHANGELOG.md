@@ -5,7 +5,6 @@
 ### Usage / API changes
 
 - Upgraded to Textual 5.0.0.
-- Removed Rich-Pyfiglet dependency, now using the new type-hinted Pyfiglet directly. This probably will not affect anybody.
 
 ### Code and project changes
 
