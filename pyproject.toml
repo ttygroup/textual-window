@@ -26,7 +26,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "ezpubsub>=0.1.2",
+    "ezpubsub>=0.2.0",
     "textual>=5.0.0",
 ]
 
@@ -36,6 +36,7 @@ Changelog = "https://github.com/edward-jazzhands/textual-window/blob/master/CHAN
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.31.0",
     "black>=25.1.0",
     "mypy>=1.15.0",
     "ruff>=0.11.11",
