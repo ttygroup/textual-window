@@ -1,6 +1,0 @@
-textual
-ezpubsub
-black
-ruff
-mypy
-basedpyright

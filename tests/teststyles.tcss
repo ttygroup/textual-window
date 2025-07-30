@@ -1,0 +1,15 @@
+Button {&:focus {text-style: none;}}
+#main_container { 
+    align: center middle; 
+    background: transparent;
+    hatch: cross $surface-lighten-1;
+} 
+#window_0 {                         
+    width: 30; height: 14;      
+    min-width: 22; min-height: 13;      /* These min and max settings will be respected */
+    max-width: 40; max-height: 20;      /* when the window is resized */
+}                                       /* The default min w/h is 12/6 */
+#window_1 { width: 35; height: 16; }    /* The default max w/h is the size of the parent container */
+# window_2 had the style set by passing in the styles_dict parameter in the constructor.
+.spacer { width: 1fr; }
+.button_container { height: 3; padding: 0 1;}
