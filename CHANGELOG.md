@@ -1,5 +1,22 @@
 # Textual-Window Changelog
 
+## [0.7.1] 2025-07-30
+
+### Changed
+
+- Dropped the required Textual version back down to 3.7.1 (last 3.x.x release) to maintain compatibility with Textual 3.x.x.
+- [dev] Changed `ci-checks.yml` to run Nox instead of individual commands for MyPy, Ruff, Pytest, etc.
+
+### Added
+
+- [dev] Added `/tests` directory with unit tests, a [pytest] section in `pyproject.toml`, and added `just test` command to the justfile.
+- [dev] Added Nox testing and `noxfile.py` to run tests in different Python versions and across different versions of Textual.
+- [dev] Added pytest, pytest-asyncio, and pytest-textual-snapshot to dev dependencies.
+
+### Removed
+
+- [dev] Deleted `ci-requirements.txt` as it is no longer needed with the new Nox setup.
+
 ## [0.7.0] 2025-07-28
 
 ### Usage / API changes

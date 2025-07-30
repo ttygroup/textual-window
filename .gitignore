@@ -1,15 +1,21 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
-*_cache
 build/
 dist/
 wheels/
 *.egg-info
 
+# Textual stuff
+snapshot_report.html
+
 # Virtual environments
 .venv
 
+# tooling stuff
+*_cache/
+.nox/
+.crush
+
 # other
-**/Thumbs.db
-**/thumbs.db
+[Tt]humbs.db
