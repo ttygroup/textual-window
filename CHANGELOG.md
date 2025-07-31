@@ -1,5 +1,13 @@
 # Textual-Window Changelog
 
+## [0.8.0] 2025-07-31
+
+### Changed
+
+- Changed `from textual._compose import compose` to `from textual.app import compose` in `window.py` to use the newly exposed `compose` function in Textual 5.1.0+.
+- Increased required Textual version back up to 5.1.0 because of newly exposed import. Textual-Window can take advantage of the newest Textual features going forward. Version 0.7.1 was a temporary downgrade to maintain compatibility with Textual 3.x.x for those that still need it.
+- Enhanced `noxfile.py` to test against specific minor versions of Textual (e.g., 5.1.0, 5.2.0) to ensure compatibility with the latest features and bug fixes (#12 by @KRRT7).
+
 ## [0.7.1] 2025-07-30
 
 ### Changed
