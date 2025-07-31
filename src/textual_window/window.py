@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 # Textual and Rich imports
 import textual.events as events
-from textual._compose import compose  # type: ignore[unused-ignore]
+from textual.app import compose
 from textual.dom import check_identifiers
 from textual.widget import Widget, AwaitMount
 from textual.message import Message
