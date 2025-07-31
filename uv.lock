@@ -1120,7 +1120,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ezpubsub", specifier = ">=0.2.0" },
-    { name = "textual", specifier = ">=3.0.0,<6.0.0" },
+    { name = "textual", specifier = ">=5.1.0,<6.0.0" },
 ]
 
 [package.metadata.requires-dev]
