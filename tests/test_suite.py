@@ -1,4 +1,3 @@
-from typing import cast
 from pathlib import Path
 from textual.pilot import Pilot
 from textual_window.demo import WindowDemo
