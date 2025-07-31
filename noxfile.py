@@ -24,7 +24,7 @@ import shutil
 
 # PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 PYTHON_VERSIONS = ["3.9"]
-MAJOR_TEXTUAL_VERSIONS = [3, 4, 5]
+MAJOR_TEXTUAL_VERSIONS = [5.1]
 
 ##############
 # NOX CONFIG #
@@ -62,18 +62,19 @@ def tests(session: nox.Session, ver: int) -> None:
         external=True,
     )
 
-    # running pip install after syncing will make it override any
+    # Running pip install after syncing will override any
     # packages that were installed by the sync command.
+    # Calculate the next minor version for the upper bound
+    major, minor = str(ver).split(".")
+    next_minor = f"{major}.{int(minor)+1}"
     session.run_install(
         "uv", "pip", "install",
-        f"textual<{ver + 1}.0.0",
+        f"textual>={ver},<{next_minor}.0",
         external=True,
     )
     session.run("uv", "pip", "show", "textual")
-    # EXPLANATION: The `ver + 1` is a trick to make UV
-    # only download the last version of each major revision of Textual.
-    # If the current version is 3, we're saying `install textual<4.0.0`.
-    # This will make UV grab the highest version of Textual 3.x.x, which is 3.7.1.
+    # EXPLANATION: This will install the latest patch release for the specified minor version series (e.g., 5.1.x, 5.3.x, etc.)
+    # by using textual>={ver},<{next_minor}.0. To test a new minor version, just add it to MAJOR_TEXTUAL_VERSIONS.
     # The last `uv pip show textual` is just for logging purposes.
 
     # These are all assuming you have corresponding
