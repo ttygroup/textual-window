@@ -1,6 +1,6 @@
 [project]
 name = "textual-window"
-version = "0.8.0"
+version = "0.8.1"
 description = "A Textual widget for a floating, draggable window and included window bar/manager system."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "ezpubsub>=0.2.0",
+    "ezpubsub>=0.3.0",
     "textual>=5.1.0,<6.0.0",
 ]
 

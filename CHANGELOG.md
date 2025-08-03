@@ -1,5 +1,9 @@
 # Textual-Window Changelog
 
+## [0.8.1] 2025-08-01
+
+- Updated `ezpubsub` dependency to version 0.3.0
+
 ## [0.8.0] 2025-07-31
 
 ### Changed
