@@ -275,11 +275,11 @@ wheels = [
 
 [[package]]
 name = "ezpubsub"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d5/5e/6bb77866683e3a88d47535c32ec4b173611cec7adb4e64d353c0511d0cd5/ezpubsub-0.2.0.tar.gz", hash = "sha256:bb5e445a8f079fc923637844cb552b44b52c5856a5e294f8bfd1e8eca1b3b425", size = 6653, upload-time = "2025-07-28T11:36:09.419Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/9d/f0ba8b794d315cd0fb00f2d03e2036c8301afc678aabd72d8931aca4b28a/ezpubsub-0.3.0.tar.gz", hash = "sha256:5242b2229561e96f0903163807170560d183afe8e601011c5f32ebf43535f0d5", size = 6875, upload-time = "2025-08-03T09:32:03.397Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/d2/d297114d86a643c9522bcee9e02561930a23864c21ff9627904168cbeec1/ezpubsub-0.2.0-py3-none-any.whl", hash = "sha256:9e00708901147fbc4ada894b339e7853b74ac7380a2e400fb1ca459f6defd2e6", size = 7367, upload-time = "2025-07-28T11:36:07.176Z" },
+    { url = "https://files.pythonhosted.org/packages/64/29/13f734871548d821eebd51b5ddedef29f9c2791d83dc910347c6411b7c19/ezpubsub-0.3.0-py3-none-any.whl", hash = "sha256:82af16d3bc3df43c58ab1fc99d0afd20457dd292ce34569fd12d30f1353c209a", size = 7530, upload-time = "2025-08-03T09:32:01.945Z" },
 ]
 
 [[package]]
@@ -1098,7 +1098,7 @@ wheels = [
 
 [[package]]
 name = "textual-window"
-version = "0.7.1"
+version = "0.8.1"
 source = { editable = "." }
 dependencies = [
     { name = "ezpubsub" },
@@ -1119,7 +1119,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ezpubsub", specifier = ">=0.2.0" },
+    { name = "ezpubsub", specifier = ">=0.3.0" },
     { name = "textual", specifier = ">=5.1.0,<6.0.0" },
 ]
 
